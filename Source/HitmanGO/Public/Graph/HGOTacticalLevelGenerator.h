@@ -43,5 +43,7 @@ protected:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+	
+	ENodeDirection GetOppositeDirection(ENodeDirection Direction);
 
 };

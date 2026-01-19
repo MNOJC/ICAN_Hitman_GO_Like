@@ -3,3 +3,8 @@
 
 #include "Camera/HGOCameraManager.h"
 
+AHGOCameraManager::AHGOCameraManager()
+{
+	ViewPitchMax = 10.f;
+	ViewPitchMin = -10.f;
+}

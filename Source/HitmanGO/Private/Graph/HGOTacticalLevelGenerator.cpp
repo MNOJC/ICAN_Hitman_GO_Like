@@ -19,15 +19,9 @@ void AHGOTacticalLevelGenerator::GenerateVisualGraph()
         return;
     }
     
-    if (!NodeGraphClass)
+    if (!NodeGraphClass || !EdgeGraphClass)
     {
-        UE_LOG(LogTemp, Error, TEXT("NodeGraphClass is not assigned!"));
-        return;
-    }
-
-    if (!EdgeGraphClass)
-    {
-        UE_LOG(LogTemp, Error, TEXT("EdgeGraphClass is not assigned!"));
+        UE_LOG(LogTemp, Error, TEXT("NodeGraphClass or EdgeGraphClass is not assigned!"));
         return;
     }
     
@@ -54,7 +48,6 @@ void AHGOTacticalLevelGenerator::GenerateVisualGraph()
         if (NodeActor)
         {
             NodeActor->NodeData = NodeData;
-            
             NodeGraphs.Add(NodeActor);
             SpawnedNodeMap.Add(NodeData.NodeID, NodeActor);
 
@@ -71,22 +64,25 @@ void AHGOTacticalLevelGenerator::GenerateVisualGraph()
         
         if (!SourceNodePtr || !TargetNodePtr)
         {
-            UE_LOG(LogTemp, Warning, TEXT("Edge %d: Source or Target node not found"), 
-                EdgeData.EdgeID);
             continue;
         }
 
         AHGONodeGraph* SourceNode = *SourceNodePtr;
         AHGONodeGraph* TargetNode = *TargetNodePtr;
         
+        SourceNode->ConnectedNodes.Add(EdgeData.Direction, TargetNode);
+
+        if (EdgeData.bIsBidirectional)
+        {
+            ENodeDirection OppositeDirection = GetOppositeDirection(EdgeData.Direction);
+            TargetNode->ConnectedNodes.Add(OppositeDirection, SourceNode);
+        }
+
         FVector SourcePos = SourceNode->GetActorLocation();
         FVector TargetPos = TargetNode->GetActorLocation();
-        
         FVector MidPoint = (SourcePos + TargetPos) / 2.0f;
-        
         FVector Direction = TargetPos - SourcePos;
         FRotator EdgeRotation = Direction.Rotation();
-        
         float Distance = FVector::Dist(SourcePos, TargetPos);
         
         FActorSpawnParameters SpawnParams;
@@ -103,23 +99,13 @@ void AHGOTacticalLevelGenerator::GenerateVisualGraph()
         if (EdgeActor && EdgeActor->EdgeMeshComponent)
         {
             EdgeActor->EdgeData = EdgeData;
-
             FVector EdgeScale = FVector(Distance / 100.0f, 1.0f, 1.0f);
             EdgeActor->SetActorScale3D(EdgeScale);
-            
             EdgeGraphs.Add(EdgeActor);
-
-            #if WITH_EDITOR
-            EdgeActor->SetActorLabel(FString::Printf(TEXT("Edge_%d_to_%d"), 
-                EdgeData.SourceNodeID,
-                EdgeData.TargetNodeID));
-            #endif
         }
     }
-
-    UE_LOG(LogTemp, Log, TEXT("Visual Graph Generated: %d nodes, %d edges"), 
-        NodeGraphs.Num(), EdgeGraphs.Num());
 }
+
 
 void AHGOTacticalLevelGenerator::ClearVisualGraph()
 {
@@ -140,8 +126,6 @@ void AHGOTacticalLevelGenerator::ClearVisualGraph()
         }
     }
     EdgeGraphs.Empty();
-
-    UE_LOG(LogTemp, Log, TEXT("Visual Graph Cleared"));
 }
 
 // Called when the game starts or when spawned
@@ -159,3 +143,14 @@ void AHGOTacticalLevelGenerator::Tick(float DeltaTime)
 
 }
 
+ENodeDirection AHGOTacticalLevelGenerator::GetOppositeDirection(ENodeDirection Direction)
+{
+    switch (Direction)
+    {
+    case ENodeDirection::North: return ENodeDirection::South;
+    case ENodeDirection::South: return ENodeDirection::North;
+    case ENodeDirection::East:  return ENodeDirection::West;
+    case ENodeDirection::West:  return ENodeDirection::East;
+    default: return ENodeDirection::None;
+    }
+}

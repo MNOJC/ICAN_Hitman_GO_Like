@@ -6,6 +6,8 @@
 #include "InputMappingContext.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
+#include "Core/HGOGraphMovementComponent.h"
+#include "Enumeration/GraphDataEnumeration.h"
 #include "GameFramework/PlayerController.h"
 #include "HGOPlayerController.generated.h"
 
@@ -17,11 +19,13 @@ class HITMANGO_API AHGOPlayerController : public APlayerController
 {
 	GENERATED_BODY()
 
-protected:
+public:
 
 	AHGOPlayerController();
 
 	virtual void BeginPlay() override;
+
+	virtual void Tick(float DeltaTime) override;
 
 	// INPUTS SETUP
 	virtual void SetupInputComponent() override;
@@ -30,6 +34,14 @@ protected:
 	void Look(const FInputActionValue& Value);
 	void CameraRotatePressed(const FInputActionValue& Value);
 	void CameraRotateReleased(const FInputActionValue& Value);
+	void PawnPressed(const FInputActionValue& Value);
+	void PawnReleased(const FInputActionValue& Value);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	float SwipeThreshold = 2.0f;
+
+	FRotator TargetCameraRotation;
+	
 
 private:
 
@@ -42,9 +54,18 @@ private:
 	UInputAction* LookAction;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
-	UInputAction* CameraRotateAction;
-
+	UInputAction* MouseInteractionAction;
+	
+	
 	// CAMERA ROTATION FLAG
 	bool bRotateCamera = false;
-	
+
+	// PAWN SELECTION FLAG
+	bool bPawnSelected = false;
+
+	FVector2D SwipeStartPosition;
+	FVector2D SwipeDelta;
+
+	// SWIPE DIRECTION CALCULATION
+	ENodeDirection CalculateSwipeDirection(FVector2D Delta);
 };

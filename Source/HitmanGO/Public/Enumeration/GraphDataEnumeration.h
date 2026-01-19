@@ -13,3 +13,13 @@ enum class ENodeType : uint8
 	Goal		UMETA(DisplayName = "Goal"),
 	Blocked		UMETA(DisplayName = "Blocked"),
 };
+
+UENUM(BlueprintType)
+enum class ENodeDirection : uint8
+{
+	North       UMETA(DisplayName = "North"),
+	South       UMETA(DisplayName = "South"),
+	East        UMETA(DisplayName = "East"),
+	West        UMETA(DisplayName = "West"),
+	None        UMETA(DisplayName = "None")
+};

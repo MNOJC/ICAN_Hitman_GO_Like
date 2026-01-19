@@ -22,7 +22,17 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components")
 	UStaticMeshComponent* NodeMeshComponent;
 
+	UPROPERTY(BlueprintReadWrite, Category = "Graph")
 	FNodeData NodeData;
+
+	UPROPERTY()
+	TMap<ENodeDirection, AHGONodeGraph*> ConnectedNodes;
+
+	UFUNCTION(BlueprintCallable, Category = "Graph")
+	AHGONodeGraph* GetNodeInDirection(ENodeDirection Direction);
+
+	UFUNCTION(BlueprintCallable, Category = "Graph")
+	bool CanMoveInDirection(ENodeDirection Direction);
 
 protected:
 	// Called when the game starts or when spawned

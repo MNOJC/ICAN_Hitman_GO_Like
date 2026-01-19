@@ -13,5 +13,7 @@ UCLASS()
 class HITMANGO_API AHGOCameraManager : public APlayerCameraManager
 {
 	GENERATED_BODY()
+
+	AHGOCameraManager();
 	
 };

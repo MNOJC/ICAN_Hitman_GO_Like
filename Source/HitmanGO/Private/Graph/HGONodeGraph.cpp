@@ -16,6 +16,20 @@ AHGONodeGraph::AHGONodeGraph()
 	NodeMeshComponent->SetupAttachment(SceneRoot);
 }
 
+AHGONodeGraph* AHGONodeGraph::GetNodeInDirection(ENodeDirection Direction)
+{
+	if (AHGONodeGraph** FoundNode = ConnectedNodes.Find(Direction))
+	{
+		return *FoundNode;
+	}
+	return nullptr;
+}
+
+bool AHGONodeGraph::CanMoveInDirection(ENodeDirection Direction)
+{
+	return ConnectedNodes.Contains(Direction);
+}
+
 // Called when the game starts or when spawned
 void AHGONodeGraph::BeginPlay()
 {

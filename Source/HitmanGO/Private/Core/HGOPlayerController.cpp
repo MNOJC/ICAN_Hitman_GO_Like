@@ -6,6 +6,7 @@
 AHGOPlayerController::AHGOPlayerController()
 {
 	SetShowMouseCursor(true);
+	bEnableClickEvents = true;
 }
 
 void AHGOPlayerController::BeginPlay()
@@ -22,6 +23,16 @@ void AHGOPlayerController::BeginPlay()
 	}
 }
 
+void AHGOPlayerController::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	if (AActor* ViewTarget = GetViewTarget())
+	{	
+		ViewTarget->SetActorRotation(FMath::RInterpTo(ViewTarget->GetActorRotation(), TargetCameraRotation, DeltaTime, 10.f));
+	}
+}
+
 void AHGOPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
@@ -29,34 +40,115 @@ void AHGOPlayerController::SetupInputComponent()
 	if (UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(InputComponent))
 	{
 		EIC->BindAction(LookAction, ETriggerEvent::Triggered, this, &AHGOPlayerController::Look);
-		EIC->BindAction(CameraRotateAction, ETriggerEvent::Started, this, &AHGOPlayerController::CameraRotatePressed);
-		EIC->BindAction(CameraRotateAction, ETriggerEvent::Completed, this, &AHGOPlayerController::CameraRotateReleased);
+		EIC->BindAction(MouseInteractionAction, ETriggerEvent::Started, this, &AHGOPlayerController::CameraRotatePressed);
+		EIC->BindAction(MouseInteractionAction, ETriggerEvent::Completed, this, &AHGOPlayerController::CameraRotateReleased);
 	}
 }
 
 void AHGOPlayerController::Look(const FInputActionValue& Value)
 {
+	const FVector2D LookAxis = Value.Get<FVector2D>() * 10.0f;
+	
+	if (bPawnSelected)
+	{
+		SwipeDelta += LookAxis;
+		UE_LOG(LogTemp, Warning, TEXT("Swipe Delta: X=%f, Y=%f"), SwipeDelta.X, SwipeDelta.Y);
+		return;
+	}
+	
 	if (!bRotateCamera)
 		return;
-
-	const FVector2D LookAxis = Value.Get<FVector2D>();
 	
 	if (AActor* ViewTarget = GetViewTarget())
 	{
+		
 		FRotator NewRotation = ViewTarget->GetActorRotation();
 		NewRotation.Yaw += LookAxis.X;
-		NewRotation.Pitch = FMath::Clamp(NewRotation.Pitch + LookAxis.Y,-80.f,80.f);
-
-		ViewTarget->SetActorRotation(NewRotation);
+		NewRotation.Pitch = FMath::Clamp(NewRotation.Pitch + LookAxis.Y,-90.f,-10.f);
+		
+		TargetCameraRotation = NewRotation;
 	}
 }
 
 void AHGOPlayerController::CameraRotatePressed(const FInputActionValue& Value)
 {
+	if (bPawnSelected)
+	return;
+	
 	bRotateCamera = true;
 }
 
 void AHGOPlayerController::CameraRotateReleased(const FInputActionValue& Value)
 {
 	bRotateCamera = false;
+	UE_LOG(LogTemp, Warning, TEXT("Camera Rotate Released"));
+	PawnReleased(FInputActionValue());
+}
+
+void AHGOPlayerController::PawnPressed(const FInputActionValue& Value)
+{
+	bPawnSelected = true;
+	bRotateCamera = false;
+
+	SwipeDelta = FVector2D::ZeroVector;
+}
+
+void AHGOPlayerController::PawnReleased(const FInputActionValue& Value)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Pawn Released"));
+	
+	if (bPawnSelected)
+	{
+		float SwipeLength = SwipeDelta.Length();
+
+		if (SwipeLength >= SwipeThreshold)
+		{
+			ENodeDirection SwipeDirection = CalculateSwipeDirection(SwipeDelta);
+
+			if (SwipeDirection != ENodeDirection::None)
+			{
+				APawn* ControlledPawn = GetPawn();
+				
+				if (ControlledPawn)
+				{
+					UHGOGraphMovementComponent* MovementComp = ControlledPawn->FindComponentByClass<UHGOGraphMovementComponent>();
+
+					if (MovementComp)
+					{
+						MovementComp->TryMoveInDirection(SwipeDirection);
+					}
+				}
+			}
+		}
+	}
+
+	bPawnSelected = false;
+}
+
+ENodeDirection AHGOPlayerController::CalculateSwipeDirection(FVector2D Delta)
+{
+	Delta.Normalize();
+	
+	float Angle = FMath::Atan2(Delta.Y, Delta.X) * (180.0f / PI);
+	Angle = Angle - GetViewTarget()->GetActorRotation().Yaw;
+	
+	if (Angle < 0)
+		Angle += 360.0f;
+	
+	if (Angle >= 45.0f && Angle < 135.0f)
+	{
+		return ENodeDirection::North;
+	}
+	else if (Angle >= 135.0f && Angle < 225.0f)
+	{
+		return ENodeDirection::West; 
+	}
+	else if (Angle >= 225.0f && Angle < 315.0f)
+	{
+		return ENodeDirection::South;
+	}
+	else
+	{
+		return ENodeDirection::East;
+	}
 }
