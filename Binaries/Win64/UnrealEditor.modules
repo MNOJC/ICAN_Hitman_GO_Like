@@ -2,6 +2,6 @@
 	"BuildId": "43139311",
 	"Modules": 
 	{
-		"Hitman_GO": "UnrealEditor-Hitman_GO.dll"
+		"HitmanGO": "UnrealEditor-HitmanGO.dll"
 	}
 }
