@@ -36,6 +36,7 @@ public:
 	void CameraRotateReleased(const FInputActionValue& Value);
 	void PawnPressed(const FInputActionValue& Value);
 	void PawnReleased(const FInputActionValue& Value);
+	void PawnGrabbed(const FInputActionValue& Value);
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	float SwipeThreshold = 2.0f;
@@ -68,4 +69,6 @@ private:
 
 	// SWIPE DIRECTION CALCULATION
 	ENodeDirection CalculateSwipeDirection(FVector2D Delta);
+
+	FVector StartPawnLocationBeforeGrab;
 };

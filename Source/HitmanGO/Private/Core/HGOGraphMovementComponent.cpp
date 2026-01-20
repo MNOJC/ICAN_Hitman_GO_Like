@@ -77,6 +77,11 @@ void UHGOGraphMovementComponent::UpdateMovement(float DeltaTime)
 	}
 }
 
+void UHGOGraphMovementComponent::UpdateGrabFeedback(float DeltaTime)
+{
+	
+}
+
 // Called when the game starts
 void UHGOGraphMovementComponent::BeginPlay()
 {

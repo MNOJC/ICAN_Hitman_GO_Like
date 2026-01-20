@@ -41,6 +41,7 @@ void AHGOPlayerController::SetupInputComponent()
 	{
 		EIC->BindAction(LookAction, ETriggerEvent::Triggered, this, &AHGOPlayerController::Look);
 		EIC->BindAction(MouseInteractionAction, ETriggerEvent::Started, this, &AHGOPlayerController::CameraRotatePressed);
+		EIC->BindAction(MouseInteractionAction, ETriggerEvent::Triggered, this, &AHGOPlayerController::PawnGrabbed);
 		EIC->BindAction(MouseInteractionAction, ETriggerEvent::Completed, this, &AHGOPlayerController::CameraRotateReleased);
 	}
 }
@@ -87,9 +88,9 @@ void AHGOPlayerController::CameraRotateReleased(const FInputActionValue& Value)
 
 void AHGOPlayerController::PawnPressed(const FInputActionValue& Value)
 {
+	StartPawnLocationBeforeGrab = GetPawn()->GetActorLocation();
 	bPawnSelected = true;
 	bRotateCamera = false;
-
 	SwipeDelta = FVector2D::ZeroVector;
 }
 
@@ -120,9 +121,54 @@ void AHGOPlayerController::PawnReleased(const FInputActionValue& Value)
 				}
 			}
 		}
+
+		GetPawn()->SetActorLocation(StartPawnLocationBeforeGrab);
+		GetPawn()->SetActorRotation(FRotator::ZeroRotator);
 	}
 
 	bPawnSelected = false;
+}
+
+void AHGOPlayerController::PawnGrabbed(const FInputActionValue& Value)
+{
+	if (bPawnSelected)
+	{
+		GetPawn()->SetActorLocation(StartPawnLocationBeforeGrab + FVector(0, 0, 15.0f));
+        
+		FRotator TiltRotation = FRotator::ZeroRotator;
+        
+		if (SwipeDelta.Length() > 0.0f)
+		{
+			ENodeDirection SwipeDirection = CalculateSwipeDirection(SwipeDelta);
+            
+			float MaxTiltAngle = 25.0f;
+			
+			switch (SwipeDirection)
+			{
+			case ENodeDirection::North:
+				TiltRotation.Pitch = -MaxTiltAngle; 
+				break;
+                    
+			case ENodeDirection::South:
+				TiltRotation.Pitch = MaxTiltAngle; 
+				break;
+                    
+			case ENodeDirection::East:
+				TiltRotation.Roll = MaxTiltAngle; 
+				break;
+                    
+			case ENodeDirection::West:
+				TiltRotation.Roll = -MaxTiltAngle;
+				break;
+                    
+			default:
+				break;
+			}
+			
+		}
+        
+		GetPawn()->SetActorRotation(FMath::RInterpTo(GetPawn()->GetActorRotation(), TiltRotation, GetWorld()->GetDeltaSeconds(), 10.0f));
+	}
 }
 
 ENodeDirection AHGOPlayerController::CalculateSwipeDirection(FVector2D Delta)

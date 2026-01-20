@@ -39,6 +39,7 @@ protected:
 	float MovementProgress;
 
 	void UpdateMovement(float DeltaTime);
+	void UpdateGrabFeedback(float DeltaTime);
 
 public:	
 	// Called every frame
