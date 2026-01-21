@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Graph/HGONodeGraph.h"
-#include "Graph/HGOEdgeGraph.h"
+#include "Graph/HGONodeGraphComponent.h"
+#include "Graph/HGOEdgeGraphComponent.h"
 #include "HGOGraphMovementComponent.generated.h"
 
 
@@ -19,7 +19,7 @@ public:
 	UHGOGraphMovementComponent();
 
 	UPROPERTY(BlueprintReadWrite, Category = "Movement")
-	AHGONodeGraph* CurrentNode;
+	UHGONodeGraphComponent* CurrentNode;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	float MovementSpeed = 700.0f;
@@ -28,14 +28,14 @@ public:
 	bool TryMoveInDirection(ENodeDirection Direction);
 	
 	UFUNCTION(BlueprintCallable, Category = "Movement")
-	void SetCurrentNode(AHGONodeGraph* NewNode);
+	void SetCurrentNode(UHGONodeGraphComponent* NewNode);
 
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
 
 	bool bIsMoving;
-	AHGONodeGraph* TargetNode;
+	UHGONodeGraphComponent* TargetNode;
 	float MovementProgress;
 
 	void UpdateMovement(float DeltaTime);

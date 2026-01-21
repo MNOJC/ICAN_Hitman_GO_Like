@@ -27,102 +27,92 @@ void AHGOTacticalLevelGenerator::GenerateVisualGraph()
     
     ClearVisualGraph();
     
-    TMap<int32, AHGONodeGraph*> SpawnedNodeMap;
+    TMap<int32, UHGONodeGraphComponent*> SpawnedNodeMap;
     
     for (const FNodeData& NodeData : LevelData->Nodes)
     {
-        FVector SpawnLocation = GetActorLocation() + NodeData.Position;
-        FRotator SpawnRotation = FRotator::ZeroRotator;
-        
-        FActorSpawnParameters SpawnParams;
-        SpawnParams.Owner = this;
-        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-        
-        AHGONodeGraph* NodeActor = GetWorld()->SpawnActor<AHGONodeGraph>(
-            NodeGraphClass,
-            SpawnLocation,
-            SpawnRotation,
-            SpawnParams
-        );
+        UHGONodeGraphComponent* NodeComp = NewObject<UHGONodeGraphComponent>(this, NodeGraphClass);
 
-        if (NodeActor)
-        {
-            NodeActor->NodeData = NodeData;
-            NodeGraphs.Add(NodeActor);
-            SpawnedNodeMap.Add(NodeData.NodeID, NodeActor);
+        if (!NodeComp)
+            continue;
 
-            #if WITH_EDITOR
-            NodeActor->SetActorLabel(FString::Printf(TEXT("Node_%d"), NodeData.NodeID));
-            #endif
-        }
+        NodeComp->SetupAttachment(GetRootComponent());
+        NodeComp->RegisterComponent();
+
+        FVector WorldLocation = GetActorLocation() + NodeData.Position;
+        NodeComp->SetWorldLocation(WorldLocation);
+
+        NodeComp->NodeData = NodeData;
+
+        NodeGraphs.Add(NodeComp);
+        SpawnedNodeMap.Add(NodeData.NodeID, NodeComp);
     }
     
     for (const FEdgeData& EdgeData : LevelData->Edges)
     {
-        AHGONodeGraph** SourceNodePtr = SpawnedNodeMap.Find(EdgeData.SourceNodeID);
-        AHGONodeGraph** TargetNodePtr = SpawnedNodeMap.Find(EdgeData.TargetNodeID);
-        
-        if (!SourceNodePtr || !TargetNodePtr)
-        {
-            continue;
-        }
+        UHGONodeGraphComponent** SourceNodePtr = SpawnedNodeMap.Find(EdgeData.SourceNodeID);
+        UHGONodeGraphComponent** TargetNodePtr = SpawnedNodeMap.Find(EdgeData.TargetNodeID);
 
-        AHGONodeGraph* SourceNode = *SourceNodePtr;
-        AHGONodeGraph* TargetNode = *TargetNodePtr;
-        
+        if (!SourceNodePtr || !TargetNodePtr)
+            continue;
+
+        UHGONodeGraphComponent* SourceNode = *SourceNodePtr;
+        UHGONodeGraphComponent* TargetNode = *TargetNodePtr;
+
         SourceNode->ConnectedNodes.Add(EdgeData.Direction, TargetNode);
 
         if (EdgeData.bIsBidirectional)
         {
-            ENodeDirection OppositeDirection = GetOppositeDirection(EdgeData.Direction);
-            TargetNode->ConnectedNodes.Add(OppositeDirection, SourceNode);
+            ENodeDirection Opposite = GetOppositeDirection(EdgeData.Direction);
+            TargetNode->ConnectedNodes.Add(Opposite, SourceNode);
         }
 
-        FVector SourcePos = SourceNode->GetActorLocation();
-        FVector TargetPos = TargetNode->GetActorLocation();
-        FVector MidPoint = (SourcePos + TargetPos) / 2.0f;
+        FVector SourcePos = SourceNode->GetComponentLocation();
+        FVector TargetPos = TargetNode->GetComponentLocation();
+
+        FVector MidPoint = (SourcePos + TargetPos) * 0.5f;
         FVector Direction = TargetPos - SourcePos;
         FRotator EdgeRotation = Direction.Rotation();
-        float Distance = FVector::Dist(SourcePos, TargetPos);
-        
-        FActorSpawnParameters SpawnParams;
-        SpawnParams.Owner = this;
-        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-        
-        AHGOEdgeGraph* EdgeActor = GetWorld()->SpawnActor<AHGOEdgeGraph>(
-            EdgeGraphClass,
-            MidPoint,
-            EdgeRotation,
-            SpawnParams
-        );
+        float Distance = Direction.Size();
 
-        if (EdgeActor && EdgeActor->EdgeMeshComponent)
-        {
-            EdgeActor->EdgeData = EdgeData;
-            FVector EdgeScale = FVector(Distance / 100.0f, 1.0f, 1.0f);
-            EdgeActor->SetActorScale3D(EdgeScale);
-            EdgeGraphs.Add(EdgeActor);
-        }
+        UHGOEdgeGraphComponent* EdgeComp = NewObject<UHGOEdgeGraphComponent>(this, EdgeGraphClass);
+
+        if (!EdgeComp)
+            continue;
+
+        EdgeComp->SetupAttachment(GetRootComponent());
+        EdgeComp->RegisterComponent();
+
+        EdgeComp->SetWorldLocation(MidPoint);
+        EdgeComp->SetWorldRotation(EdgeRotation);
+
+        EdgeComp->EdgeData = EdgeData;
+
+        FVector EdgeScale(Distance / 100.f, .1f, 1.f);
+        EdgeComp->SetWorldScale3D(EdgeScale);
+
+        EdgeGraphs.Add(EdgeComp);
     }
+
 }
 
 
 void AHGOTacticalLevelGenerator::ClearVisualGraph()
 {
-    for (AHGONodeGraph* Node : NodeGraphs)
+    for (UHGONodeGraphComponent* Node : NodeGraphs)
     {
         if (Node)
         {
-            Node->Destroy();
+            Node->DestroyComponent();
         }
     }
     NodeGraphs.Empty();
     
-    for (AHGOEdgeGraph* Edge : EdgeGraphs)
+    for (UHGOEdgeGraphComponent* Edge : EdgeGraphs)
     {
         if (Edge)
         {
-            Edge->Destroy();
+            Edge->DestroyComponent();
         }
     }
     EdgeGraphs.Empty();

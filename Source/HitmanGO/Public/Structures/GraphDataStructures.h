@@ -7,7 +7,7 @@
 #include "GraphDataStructures.generated.h" 
 
 USTRUCT(BlueprintType)
-struct FNodeData
+struct FNodeData 
 {
 	GENERATED_BODY()
 

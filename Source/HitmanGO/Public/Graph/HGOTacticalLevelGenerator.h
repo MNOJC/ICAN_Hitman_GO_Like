@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "HGOEdgeGraph.h"
-#include "HGONodeGraph.h"
+#include "HGOEdgeGraphComponent.h"
+#include "HGONodeGraphComponent.h"
 #include "GameFramework/Actor.h"
 #include "LevelData/HGOTacticalLevelData.h"
 #include "HGOTacticalLevelGenerator.generated.h"
@@ -22,16 +22,16 @@ public:
 	UHGOTacticalLevelData* LevelData;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Level Data")
-	TSubclassOf<AHGONodeGraph> NodeGraphClass;
+	TSubclassOf<UHGONodeGraphComponent> NodeGraphClass;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Level Data")
-	TSubclassOf<AHGOEdgeGraph> EdgeGraphClass;
+	TSubclassOf<UHGOEdgeGraphComponent> EdgeGraphClass;
 
 	UPROPERTY()
-	TArray<AHGONodeGraph*> NodeGraphs;
+	TArray<UHGONodeGraphComponent*> NodeGraphs;
 
 	UPROPERTY()
-	TArray<AHGOEdgeGraph*> EdgeGraphs;
+	TArray<UHGOEdgeGraphComponent*> EdgeGraphs;
 
 	void GenerateVisualGraph();
 	void ClearVisualGraph();

@@ -26,7 +26,7 @@ bool UHGOGraphMovementComponent::TryMoveInDirection(ENodeDirection Direction)
 		return false;
 	}
 	
-	AHGONodeGraph* NextNode = CurrentNode->GetNodeInDirection(Direction);
+	UHGONodeGraphComponent* NextNode = CurrentNode->GetNodeInDirection(Direction);
 
 	if (!NextNode)
 	{
@@ -40,12 +40,12 @@ bool UHGOGraphMovementComponent::TryMoveInDirection(ENodeDirection Direction)
 	return true;
 }
 
-void UHGOGraphMovementComponent::SetCurrentNode(AHGONodeGraph* NewNode)
+void UHGOGraphMovementComponent::SetCurrentNode(UHGONodeGraphComponent* NewNode)
 {
 	if (NewNode)
 	{
 		CurrentNode = NewNode;
-		GetOwner()->SetActorLocation(NewNode->GetActorLocation());
+		GetOwner()->SetActorLocation(NewNode->GetComponentLocation());
 		bIsMoving = false;
 		MovementProgress = 0.0f;
 	}
@@ -60,7 +60,7 @@ void UHGOGraphMovementComponent::UpdateMovement(float DeltaTime)
 
 	if (MovementProgress >= 1.0f)
 	{
-		GetOwner()->SetActorLocation(TargetNode->GetActorLocation());
+		GetOwner()->SetActorLocation(TargetNode->GetComponentLocation());
 		CurrentNode = TargetNode;
 		TargetNode = nullptr;
 		bIsMoving = false;
@@ -69,8 +69,8 @@ void UHGOGraphMovementComponent::UpdateMovement(float DeltaTime)
 	}
 	else
 	{
-		FVector StartPos = CurrentNode->GetActorLocation();
-		FVector EndPos = TargetNode->GetActorLocation();
+		FVector StartPos = CurrentNode->GetComponentLocation();
+		FVector EndPos = TargetNode->GetComponentLocation();
 		FVector NewPos = FMath::Lerp(StartPos, EndPos, MovementProgress);
         
 		GetOwner()->SetActorLocation(NewPos);

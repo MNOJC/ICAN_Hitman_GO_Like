@@ -2,7 +2,6 @@
 
 
 #include "Core/HGOPlayerPawn.h"
-
 #include "Core/HGOPlayerController.h"
 #include "Graph/HGOTacticalLevelGenerator.h"
 
@@ -88,8 +87,8 @@ void AHGOPlayerPawn::InitPawnPosition()
 					FVector SpawnLocation = LevelGenerator->GetActorLocation() + Node.Position;
 					SetActorLocation(SpawnLocation);
 
-					AHGONodeGraph* StartNode = nullptr;
-					for (AHGONodeGraph* GraphNode : LevelGenerator->NodeGraphs)
+					UHGONodeGraphComponent* StartNode = nullptr;
+					for (UHGONodeGraphComponent* GraphNode : LevelGenerator->NodeGraphs)
 					{
 						if (GraphNode && GraphNode->NodeData.NodeID == Node.NodeID)
 						{

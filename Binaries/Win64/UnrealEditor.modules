@@ -2,6 +2,7 @@
 	"BuildId": "43139311",
 	"Modules": 
 	{
+		"GraphToolEditor": "UnrealEditor-GraphToolEditor.dll",
 		"HitmanGO": "UnrealEditor-HitmanGO.dll"
 	}
 }
