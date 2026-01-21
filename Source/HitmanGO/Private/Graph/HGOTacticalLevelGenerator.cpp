@@ -38,9 +38,8 @@ void AHGOTacticalLevelGenerator::GenerateVisualGraph()
 
         NodeComp->SetupAttachment(GetRootComponent());
         NodeComp->RegisterComponent();
-
-        FVector WorldLocation = GetActorLocation() + NodeData.Position;
-        NodeComp->SetWorldLocation(WorldLocation);
+        
+        NodeComp->SetWorldLocation(NodeData.Position);
 
         NodeComp->NodeData = NodeData;
 

@@ -15,7 +15,8 @@ public class GraphToolEditor : ModuleRules
 			"Engine", 
 			"Blutility",
 			"HitmanGO",
-			"UMG"
+			"UMG",
+			"InputCore"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]

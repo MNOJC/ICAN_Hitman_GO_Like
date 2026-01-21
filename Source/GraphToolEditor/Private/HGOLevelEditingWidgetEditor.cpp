@@ -2,4 +2,50 @@
 
 
 #include "HGOLevelEditingWidgetEditor.h"
+#include "Kismet/GameplayStatics.h"
 
+
+void UHGOLevelEditingWidgetEditor::OnConnectNodesButtonClicked()
+{
+	TArray<AActor*> FoundActors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AHGOGraphManagerEditor::StaticClass(), FoundActors);
+    
+	if (FoundActors.Num() > 0)
+	{
+		AHGOGraphManagerEditor* Manager = Cast<AHGOGraphManagerEditor>(FoundActors[0]);
+		if (Manager)
+		{
+			Manager->CreateConnectionFromSelection();
+		}
+	}
+}
+
+void UHGOLevelEditingWidgetEditor::OnCreateNodeButtonClicked()
+{
+	TArray<AActor*> FoundActors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AHGOGraphManagerEditor::StaticClass(), FoundActors);
+    
+	if (FoundActors.Num() > 0)
+	{
+		AHGOGraphManagerEditor* Manager = Cast<AHGOGraphManagerEditor>(FoundActors[0]);
+		if (Manager)
+		{
+			Manager->CreateNewNode();
+		}
+	}
+}
+
+void UHGOLevelEditingWidgetEditor::OnSaveGraphButtonClicked()
+{
+	TArray<AActor*> FoundActors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AHGOGraphManagerEditor::StaticClass(), FoundActors);
+    
+	if (FoundActors.Num() > 0)
+	{
+		AHGOGraphManagerEditor* Manager = Cast<AHGOGraphManagerEditor>(FoundActors[0]);
+		if (Manager)
+		{
+			Manager->SaveGraphDataAsset(GraphDataAsset);
+		}
+	}
+}

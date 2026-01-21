@@ -2,6 +2,7 @@
 
 
 #include "HGOEdgeEditor.h"
+#include "EngineUtils.h"
 
 // Sets default values
 AHGOEdgeEditor::AHGOEdgeEditor()
@@ -9,6 +10,13 @@ AHGOEdgeEditor::AHGOEdgeEditor()
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
+	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+	SetRootComponent(Root);
+
+	EdgeMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EdgeMesh"));
+	EdgeMesh->SetupAttachment(Root);
+
+	bIsEditorOnlyActor = true;              
 }
 
 // Called when the game starts or when spawned
