@@ -7,9 +7,8 @@
 #include "Camera/CameraActor.h"
 #include "HGOGameMode.generated.h"
 
-/**
- * 
- */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSwitchWorldGraph, bool, bToUpsidedown);
+
 UCLASS()
 class HITMANGO_API AHGOGameMode : public AGameModeBase
 {
@@ -18,13 +17,14 @@ class HITMANGO_API AHGOGameMode : public AGameModeBase
 public:
 
 	virtual void BeginPlay() override;
-
-	// Level Camera Class
+	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Classes")
 	TSubclassOf<AActor> LevelCameraClass;
+
+	UPROPERTY(BlueprintAssignable, Category = "World")
+	FOnSwitchWorldGraph OnSwitchWorldGraph;
 	
 private:
-
-	// Initialize Level Camera
+	
 	void InitLevelCamera();
 };

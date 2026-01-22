@@ -17,9 +17,12 @@ class GRAPHTOOLEDITOR_API UHGOLevelEditingWidgetEditor : public UEditorUtilityWi
 	GENERATED_BODY()
 public:
 
+	//DATA ASSET TO SAVE THE GRAPH DATA
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Graph Data")
 	UHGOTacticalLevelData* GraphDataAsset;
 
+
+	//METHODS CALLED BY THE WIDGET BUTTONS
 	UFUNCTION(BlueprintCallable, Category="Graph Tool")
 	void OnConnectNodesButtonClicked();
 	

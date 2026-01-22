@@ -43,6 +43,11 @@ void AHGOTacticalLevelGenerator::GenerateVisualGraph()
 
         NodeComp->NodeData = NodeData;
 
+        if (NodeData.bIsUpsideDownNode)
+            NodeComp->SetVisibility(false, true);
+           
+        
+
         NodeGraphs.Add(NodeComp);
         SpawnedNodeMap.Add(NodeData.NodeID, NodeComp);
     }
@@ -90,7 +95,15 @@ void AHGOTacticalLevelGenerator::GenerateVisualGraph()
         FVector EdgeScale(Distance / 100.f, .1f, 1.f);
         EdgeComp->SetWorldScale3D(EdgeScale);
 
+        bool bIsUpsideDownEdge = SourceNode->NodeData.bIsUpsideDownNode || TargetNode->NodeData.bIsUpsideDownNode;
+        
+        if (bIsUpsideDownEdge)
+            EdgeComp->SetVisibility(false, true);
+            
+        
+
         EdgeGraphs.Add(EdgeComp);
+        
     }
 
 }

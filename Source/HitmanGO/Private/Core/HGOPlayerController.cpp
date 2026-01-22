@@ -2,6 +2,7 @@
 
 
 #include "Core/HGOPlayerController.h"
+#include "EngineUtils.h"
 
 AHGOPlayerController::AHGOPlayerController()
 {
@@ -53,12 +54,12 @@ void AHGOPlayerController::Look(const FInputActionValue& Value)
 	if (bPawnSelected)
 	{
 		SwipeDelta += LookAxis;
-		UE_LOG(LogTemp, Warning, TEXT("Swipe Delta: X=%f, Y=%f"), SwipeDelta.X, SwipeDelta.Y);
 		return;
 	}
 	
 	if (!bRotateCamera)
 		return;
+
 	
 	if (AActor* ViewTarget = GetViewTarget())
 	{

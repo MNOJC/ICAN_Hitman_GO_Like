@@ -23,15 +23,21 @@ protected:
 public:    
 	virtual void Tick(float DeltaTime) override;
 	
+	//BASE CLASS FOR GRAPH MANAGEMENT
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Graph")
 	TSubclassOf<AHGOEdgeEditor> EdgeClass;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Graph")
 	TSubclassOf<AHGONodeEditor> NodeClass;
-	
+
+	//FUNCTIONS CALLED BY THE EDITOR WIDGETS CLASS
+	/**
+	 * 
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Graph")
 	void CreateConnectionFromSelection();
 
+	
 	UFUNCTION(BlueprintCallable, Category = "Graph")
 	AHGONodeEditor* CreateNewNode(FVector SpawnLocation = FVector::ZeroVector);
 
@@ -39,6 +45,8 @@ public:
 	void SaveGraphDataAsset(UHGOTacticalLevelData* GraphDataAsset);
 
 private:
+
+	//HELPER FUNCTIONS
 	void CreateEdgeBetweenNodes(AHGONodeEditor* Source, AHGONodeEditor* Target);
 	int32 GetNextEdgeID();
 	int32 GetNextNodeID();

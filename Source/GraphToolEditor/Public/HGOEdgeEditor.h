@@ -16,12 +16,16 @@ public:
 	// Sets default values for this actor's properties
 	AHGOEdgeEditor();
 
+	
+	//BASE COMPONENTS FOR EDGE VISUALIZATION
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Edge")
 	USceneComponent* Root;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Edge")
 	UStaticMeshComponent* EdgeMesh;
 
+
+	//USER CAN EDIT THIS DATA IN THE EDITOR 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Edge")
 	FEdgeData EdgeData;
 	

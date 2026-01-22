@@ -36,16 +36,8 @@ void AHGOGraphManagerEditor::CreateConnectionFromSelection()
 AHGONodeEditor* AHGOGraphManagerEditor::CreateNewNode(FVector SpawnLocation)
 {
     if (!NodeClass)
-    {
-        UE_LOG(LogTemp, Error, TEXT("NodeClass is not set! Please assign it in the Graph Manager."));
-        
-        #if WITH_EDITOR
-        FMessageDialog::Open(EAppMsgType::Ok, 
-            FText::FromString(TEXT("NodeClass is not assigned in the Graph Manager!")));
-        #endif
-        
         return nullptr;
-    }
+    
     
     if (SpawnLocation.IsZero())
     {
@@ -69,41 +61,17 @@ AHGONodeEditor* AHGOGraphManagerEditor::CreateNewNode(FVector SpawnLocation)
     FActorSpawnParameters SpawnParams;
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-    AHGONodeEditor* NewNode = GetWorld()->SpawnActor<AHGONodeEditor>(
-        NodeClass,
-        SpawnLocation,
-        FRotator::ZeroRotator,
-        SpawnParams
-    );
+    GetWorld()->Modify();
+    
+    AHGONodeEditor* NewNode = GetWorld()->SpawnActor<AHGONodeEditor>(NodeClass, SpawnLocation,FRotator::ZeroRotator, SpawnParams);
 
     if (NewNode)
     {
         int32 NewNodeID = GetNextNodeID();
         NewNode->NodeData.NodeID = NewNodeID;
         NewNode->NodeData.Position = SpawnLocation;
-        NewNode->NodeData.NodeType = ENodeType::Normal; // Par défaut
-
-        #if WITH_EDITOR
-        NewNode->SetActorLabel(FString::Printf(TEXT("Node_%d"), NewNodeID));
+        NewNode->NodeData.NodeType = ENodeType::Normal; 
         
-        // Sélectionner le nouveau node dans l'éditeur
-        if (GEditor)
-        {
-            GEditor->SelectNone(true, true);
-            GEditor->SelectActor(NewNode, true, true);
-        }
-        #endif
-
-        UE_LOG(LogTemp, Log, TEXT("Node created with ID: %d at location: %s"), 
-            NewNodeID, *SpawnLocation.ToString());
-
-        #if WITH_EDITOR
-        // Message de confirmation
-        FText SuccessMessage = FText::FromString(FString::Printf(
-            TEXT("Node created!\nID: %d"), NewNodeID));
-        FMessageDialog::Open(EAppMsgType::Ok, SuccessMessage);
-        #endif
-
         return NewNode;
     }
 
@@ -186,7 +154,8 @@ void AHGOGraphManagerEditor::CreateEdgeBetweenNodes(AHGONodeEditor* Source, AHGO
     
     FActorSpawnParameters SpawnParams;
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
+    
+    GetWorld()->Modify();
     AHGOEdgeEditor* NewEdge = GetWorld()->SpawnActor<AHGOEdgeEditor>(EdgeClass, MidPoint, EdgeRotation, SpawnParams);
 
     if (NewEdge)

@@ -17,7 +17,7 @@ public:
 	
 	AHGOCamera();
 
-	//COMPONENTS
+	//BAISC COMPONENTS FOR CAMERA FUNCTIONALITY
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components")
 	USceneComponent* SceneRoot;
 
@@ -35,4 +35,9 @@ public:
 	
 	virtual void Tick(float DeltaTime) override;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
+	float MaxPitchAngle = 80.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
+	float MinPitchAngle = -80.0f;
 };
