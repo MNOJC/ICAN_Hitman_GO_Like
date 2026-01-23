@@ -9,7 +9,7 @@
 #include "Structures/GraphDataStructures.h"
 #include "HGONodeEditor.generated.h"
 
-UCLASS()
+UCLASS(HideCategories=(Collision, Rendering, Replication, Input, Actor, Cooking, HLOD, Mobile, Physics, Networking, WorldPartition, LevelInstance, DataLayers), Blueprintable)
 class GRAPHTOOLEDITOR_API AHGONodeEditor : public AActor
 {
 	GENERATED_BODY()
