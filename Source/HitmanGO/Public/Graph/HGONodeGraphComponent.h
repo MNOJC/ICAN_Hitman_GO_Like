@@ -22,10 +22,8 @@ public:
 	UPROPERTY()
 	TMap<ENodeDirection, UHGONodeGraphComponent*> ConnectedNodes;
 
-	UFUNCTION(BlueprintCallable, Category = "Graph")
+	
 	UHGONodeGraphComponent* GetNodeInDirection(ENodeDirection Direction);
-
-	UFUNCTION(BlueprintCallable, Category = "Graph")
 	bool CanMoveInDirection(ENodeDirection Direction);
 
 protected:

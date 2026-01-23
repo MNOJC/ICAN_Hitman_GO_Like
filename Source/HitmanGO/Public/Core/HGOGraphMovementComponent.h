@@ -6,6 +6,7 @@
 #include "Components/ActorComponent.h"
 #include "Graph/HGONodeGraphComponent.h"
 #include "Graph/HGOEdgeGraphComponent.h"
+#include "Core/HGOGameMode.h"
 #include "HGOGraphMovementComponent.generated.h"
 
 
@@ -29,6 +30,9 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	void SetCurrentNode(UHGONodeGraphComponent* NewNode);
+	
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	void SwitchWorldGraph();
 
 protected:
 	// Called when the game starts
@@ -37,9 +41,11 @@ protected:
 	bool bIsMoving;
 	UHGONodeGraphComponent* TargetNode;
 	float MovementProgress;
+	bool bInUpsideDownWorld = false;
 
 	void UpdateMovement(float DeltaTime);
 	void UpdateGrabFeedback(float DeltaTime);
+	void HideShowGraph(TArray<UHGOEdgeGraphComponent*> EdgesToProcess, TArray<UHGONodeGraphComponent*> NodesToProcess,bool bHide);
 
 public:	
 	// Called every frame

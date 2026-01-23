@@ -4,25 +4,52 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "HGONodeEditor.h"
+#include "HGOEdgeEditor.h"
+#include "LevelData/HGOTacticalLevelData.h"
 #include "HGOGraphManagerEditor.generated.h"
 
 UCLASS()
 class GRAPHTOOLEDITOR_API AHGOGraphManagerEditor : public AActor
 {
 	GENERATED_BODY()
-	
-public:	
-	// Sets default values for this actor's properties
+    
+public:    
 	AHGOGraphManagerEditor();
 
 protected:
-	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-public:	
-	// Called every frame
+public:    
 	virtual void Tick(float DeltaTime) override;
+	
+	//BASE CLASS FOR GRAPH MANAGEMENT
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Graph")
+	TSubclassOf<AHGOEdgeEditor> EdgeClass;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Graph")
+	TSubclassOf<AHGONodeEditor> NodeClass;
 
-	void CreateNodesConnections();
+	//FUNCTIONS CALLED BY THE EDITOR WIDGETS CLASS
+	/**
+	 * 
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Graph")
+	void CreateConnectionFromSelection();
 
+	
+	UFUNCTION(BlueprintCallable, Category = "Graph")
+	AHGONodeEditor* CreateNewNode(FVector SpawnLocation = FVector::ZeroVector);
+
+	UFUNCTION(BlueprintCallable, Category = "Graph")
+	void SaveGraphDataAsset(UHGOTacticalLevelData* GraphDataAsset);
+
+private:
+
+	//HELPER FUNCTIONS
+	void CreateEdgeBetweenNodes(AHGONodeEditor* Source, AHGONodeEditor* Target);
+	int32 GetNextEdgeID();
+	int32 GetNextNodeID();
+	ENodeDirection CalculateDirection(FVector SourcePos, FVector TargetPos);
+	TArray<AHGONodeEditor*> GetSelectedNodesInEditor();
 };
