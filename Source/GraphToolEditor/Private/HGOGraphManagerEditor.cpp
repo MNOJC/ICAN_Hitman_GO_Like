@@ -52,7 +52,21 @@ AHGONodeEditor* AHGOGraphManagerEditor::CreateNewNode(FVector SpawnLocation)
                 FVector CameraLocation = ViewportClient->GetViewLocation();
                 FRotator CameraRotation = ViewportClient->GetViewRotation();
 
+                float ZLocation = 0.0f;
+
+                for (TActorIterator<AHGONodeEditor> NodeIt(GetWorld()); NodeIt; ++NodeIt)
+                {
+                    AHGONodeEditor* Node = *NodeIt;
+                    if (Node)
+                    {
+                       ZLocation = Node->GetActorLocation().Z;
+                       break;
+                    }                        
+                }
                 SpawnLocation = CameraLocation + CameraRotation.Vector() * 500.0f;
+                SpawnLocation = SpawnLocation.GridSnap(GridSpacing);
+                SpawnLocation = FVector(SpawnLocation.X, SpawnLocation.Y, ZLocation);
+                
             }
         }
         #endif
@@ -70,7 +84,8 @@ AHGONodeEditor* AHGOGraphManagerEditor::CreateNewNode(FVector SpawnLocation)
         int32 NewNodeID = GetNextNodeID();
         NewNode->NodeData.NodeID = NewNodeID;
         NewNode->NodeData.Position = SpawnLocation;
-        NewNode->NodeData.NodeType = ENodeType::Normal; 
+        NewNode->NodeData.NodeType = ENodeType::Normal;
+        NewNode->NodeData.bIsUpsideDownNode = bEditingUpsideDownGraph;
         
         return NewNode;
     }
@@ -108,6 +123,128 @@ void AHGOGraphManagerEditor::SaveGraphDataAsset(UHGOTacticalLevelData* GraphData
 
     
 }
+
+void AHGOGraphManagerEditor::SwitchEditingWorldType(bool bIsEditingUpsideDown)
+{
+    bEditingUpsideDownGraph = bIsEditingUpsideDown;
+    
+    TMap<int32, AHGONodeEditor*> NodeMap;
+
+    for (TActorIterator<AHGONodeEditor> NodeIt(GetWorld()); NodeIt; ++NodeIt)
+    {
+        AHGONodeEditor* Node = *NodeIt;
+        if (!Node)
+            continue;
+
+        bool bShouldBeVisible = (Node->NodeData.bIsUpsideDownNode == bEditingUpsideDownGraph);
+
+        Node->SetActorHiddenInGame(!bShouldBeVisible);
+        Node->SetActorEnableCollision(bShouldBeVisible);
+        Node->SetIsTemporarilyHiddenInEditor(!bShouldBeVisible);
+
+        NodeMap.Add(Node->NodeData.NodeID, Node);
+    }
+    
+    for (TActorIterator<AHGOEdgeEditor> EdgeIt(GetWorld()); EdgeIt; ++EdgeIt)
+    {
+        AHGOEdgeEditor* Edge = *EdgeIt;
+        if (!Edge)
+            continue;
+
+        AHGONodeEditor** SourceNode = NodeMap.Find(Edge->EdgeData.SourceNodeID);
+        AHGONodeEditor** TargetNode = NodeMap.Find(Edge->EdgeData.TargetNodeID);
+
+        bool bShouldBeVisible = false;
+
+        if (SourceNode && *SourceNode)
+        {
+            if ((*SourceNode)->NodeData.bIsUpsideDownNode == bEditingUpsideDownGraph)
+            {
+                bShouldBeVisible = true;
+            }
+        }
+
+        if (TargetNode && *TargetNode)
+        {
+            if ((*TargetNode)->NodeData.bIsUpsideDownNode == bEditingUpsideDownGraph)
+            {
+                bShouldBeVisible = true;
+            }
+        }
+
+        Edge->SetActorHiddenInGame(!bShouldBeVisible);
+        Edge->SetActorEnableCollision(bShouldBeVisible);
+        Edge->SetIsTemporarilyHiddenInEditor(!bShouldBeVisible);
+    }
+}
+
+void AHGOGraphManagerEditor::OnGridSpacingChanged(float NewGridSpacing)
+{
+    GridSpacing = NewGridSpacing;
+}
+
+void AHGOGraphManagerEditor::OnGridRefreshed()
+{
+    const float PreviousGridSpacing = ComputeCurrentGridSpacing();
+    
+    if (!GetWorld() || PreviousGridSpacing <= KINDA_SMALL_NUMBER)
+        return;
+
+    const float ScaleRatio = GridSpacing / PreviousGridSpacing;
+
+    GetWorld()->Modify();
+
+    TMap<int32, AHGONodeEditor*> NodeMap;
+
+    // --- 1. Scale des nodes ---
+    for (TActorIterator<AHGONodeEditor> NodeIt(GetWorld()); NodeIt; ++NodeIt)
+    {
+        AHGONodeEditor* Node = *NodeIt;
+        if (!Node)
+            continue;
+
+        FVector OldPos = Node->GetActorLocation();
+        FVector NewPos = OldPos * ScaleRatio;
+
+        Node->Modify();
+        Node->SetActorLocation(NewPos);
+        Node->NodeData.Position = NewPos;
+
+        NodeMap.Add(Node->NodeData.NodeID, Node);
+    }
+
+    // --- 2. Refresh des edges ---
+    for (TActorIterator<AHGOEdgeEditor> EdgeIt(GetWorld()); EdgeIt; ++EdgeIt)
+    {
+        AHGOEdgeEditor* Edge = *EdgeIt;
+        if (!Edge)
+            continue;
+
+        AHGONodeEditor** SourceNode = NodeMap.Find(Edge->EdgeData.SourceNodeID);
+        AHGONodeEditor** TargetNode = NodeMap.Find(Edge->EdgeData.TargetNodeID);
+
+        if (!SourceNode || !TargetNode || !(*SourceNode) || !(*TargetNode))
+            continue;
+
+        FVector SourcePos = (*SourceNode)->GetActorLocation();
+        FVector TargetPos = (*TargetNode)->GetActorLocation();
+
+        FVector Direction = TargetPos - SourcePos;
+        float Distance = Direction.Size();
+        FVector MidPoint = (SourcePos + TargetPos) * 0.5f;
+
+        Edge->Modify();
+        Edge->SetActorLocation(MidPoint);
+        Edge->SetActorRotation(Direction.Rotation());
+        Edge->SetActorScale3D(FVector(Distance / 100.0f, 1.f, 1.f));
+
+        Edge->EdgeData.Direction = CalculateDirection(SourcePos, TargetPos);
+    }
+}
+
+
+
+
 
 TArray<AHGONodeEditor*> AHGOGraphManagerEditor::GetSelectedNodesInEditor()
 {
@@ -229,4 +366,40 @@ ENodeDirection AHGOGraphManagerEditor::CalculateDirection(FVector SourcePos, FVe
     {
         return ENodeDirection::East;
     }
+}
+
+float AHGOGraphManagerEditor::ComputeCurrentGridSpacing() const 
+{
+    TArray<FVector> Positions;
+
+    for (TActorIterator<AHGONodeEditor> It(GetWorld()); It; ++It)
+    {
+        if (*It)
+        {
+            Positions.Add(It->GetActorLocation());
+        }
+    }
+
+    if (Positions.Num() < 2)
+        return GridSpacing; // fallback safe
+
+    float SmallestDelta = TNumericLimits<float>::Max();
+
+    for (int32 i = 0; i < Positions.Num(); ++i)
+    {
+        for (int32 j = i + 1; j < Positions.Num(); ++j)
+        {
+            const FVector Delta = (Positions[i] - Positions[j]).GetAbs();
+
+            if (Delta.X > KINDA_SMALL_NUMBER)
+                SmallestDelta = FMath::Min(SmallestDelta, Delta.X);
+
+            if (Delta.Y > KINDA_SMALL_NUMBER)
+                SmallestDelta = FMath::Min(SmallestDelta, Delta.Y);
+        }
+    }
+
+    return (SmallestDelta == TNumericLimits<float>::Max())
+           ? GridSpacing
+           : SmallestDelta;
 }

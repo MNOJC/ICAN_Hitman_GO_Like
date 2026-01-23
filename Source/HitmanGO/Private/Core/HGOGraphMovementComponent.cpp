@@ -204,7 +204,7 @@ void UHGOGraphMovementComponent::UpdateMovement(float DeltaTime)
 		bIsMoving = false;
 		MovementProgress = 0.0f;
 
-		if (CurrentNode->NodeData.NodeType == ENodeType::UpsideDown)
+		if (CurrentNode->NodeData.NodeType == ENodeType::UpsideDownPortal)
 		{
 			UE_LOG(LogTemp, Log, TEXT("Reached UpsideDown portal node!"));
 			SwitchWorldGraph();

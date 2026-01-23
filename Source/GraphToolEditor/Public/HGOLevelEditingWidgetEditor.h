@@ -31,4 +31,13 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category="Graph Tool")
 	void OnSaveGraphButtonClicked();
+
+	UFUNCTION(BlueprintCallable, Category="Graph Tool")
+	void OnSwitchEditingWorldType(bool bIsEditingUpsideDown);
+
+	UFUNCTION(BlueprintCallable, Category="Graph Tool")
+	void OnGridSpacingChanged(float NewGridSpacing);
+
+	UFUNCTION(BlueprintCallable, Category="Graph Tool")
+	void OnGridRefreshed();
 };

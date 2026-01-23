@@ -30,10 +30,13 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Graph")
 	TSubclassOf<AHGONodeEditor> NodeClass;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Graph")
+	bool bEditingUpsideDownGraph = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Graph")
+	float GridSpacing = 200.0f;
+	
 	//FUNCTIONS CALLED BY THE EDITOR WIDGETS CLASS
-	/**
-	 * 
-	 */
 	UFUNCTION(BlueprintCallable, Category = "Graph")
 	void CreateConnectionFromSelection();
 
@@ -44,12 +47,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Graph")
 	void SaveGraphDataAsset(UHGOTacticalLevelData* GraphDataAsset);
 
+	UFUNCTION(BlueprintCallable, Category = "Graph")
+	void SwitchEditingWorldType(bool bIsEditingUpsideDown);
+
+	UFUNCTION(BlueprintCallable, Category = "Graph")
+	void OnGridSpacingChanged(float NewGridSpacing);
+
+	UFUNCTION(BlueprintCallable, Category = "Graph")
+	void OnGridRefreshed();
+
 private:
 
 	//HELPER FUNCTIONS
 	void CreateEdgeBetweenNodes(AHGONodeEditor* Source, AHGONodeEditor* Target);
 	int32 GetNextEdgeID();
 	int32 GetNextNodeID();
+	float ComputeCurrentGridSpacing() const;
 	ENodeDirection CalculateDirection(FVector SourcePos, FVector TargetPos);
 	TArray<AHGONodeEditor*> GetSelectedNodesInEditor();
 };
