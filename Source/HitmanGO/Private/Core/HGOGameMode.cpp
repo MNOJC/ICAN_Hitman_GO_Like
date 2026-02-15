@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "Core/HGOGameMode.h"
+#include "Core/HGOTacticalTurnManager.h"
 #include "HGOLog.h"
 #include "Camera/HGOCamera.h"
 
@@ -10,6 +10,21 @@ void AHGOGameMode::BeginPlay()
 	Super::BeginPlay();
 
 	InitLevelCamera();
+}
+
+void AHGOGameMode::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	// Tick the turn manager subsystem
+	if (UWorld* World = GetWorld())
+	{
+		if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
+		{
+			UE_LOG(LogTemp, Verbose, TEXT("[GameMode] Ticking Turn Manager"));
+			TurnManager->Tick(DeltaTime);
+		}
+	}
 }
 
 void AHGOGameMode::InitLevelCamera()

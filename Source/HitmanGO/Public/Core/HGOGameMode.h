@@ -17,6 +17,7 @@ class HITMANGO_API AHGOGameMode : public AGameModeBase
 public:
 
 	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaTime) override;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Classes")
 	TSubclassOf<AActor> LevelCameraClass;

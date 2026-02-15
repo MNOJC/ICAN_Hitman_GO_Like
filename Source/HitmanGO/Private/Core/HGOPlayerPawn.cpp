@@ -45,7 +45,7 @@ void AHGOPlayerPawn::OnPawnClicked(UPrimitiveComponent* TouchedComponent, FKey B
 		AHGOPlayerController* HGOController = Cast<AHGOPlayerController>(World->GetFirstPlayerController());
 		if (HGOController)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Pawn Clicked"));
+			//UE_LOG(LogTemp, Warning, TEXT("Pawn Clicked"));
 			HGOController->PawnPressed(FInputActionValue());
 		}
 	}
@@ -58,7 +58,7 @@ void AHGOPlayerPawn::OnPawnReleased(UPrimitiveComponent* TouchedComponent, FKey 
 		AHGOPlayerController* HGOController = Cast<AHGOPlayerController>(World->GetFirstPlayerController());
 		if (HGOController)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Pawn Released"));
+			//UE_LOG(LogTemp, Warning, TEXT("Pawn Released"));
 			HGOController->PawnReleased(FInputActionValue());
 		}
 	}

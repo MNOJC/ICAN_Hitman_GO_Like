@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "Core/HGOGraphMovementComponent.h"
+#include "Core/HGOTacticalTurnManager.h"
 #include "EngineUtils.h"
 #include "Graph/HGOTacticalLevelGenerator.h"
 
@@ -18,26 +18,50 @@ UHGOGraphMovementComponent::UHGOGraphMovementComponent()
 
 bool UHGOGraphMovementComponent::TryMoveInDirection(ENodeDirection Direction)
 {
+	// Check if we can move
 	if (bIsMoving)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[Movement] Already moving, ignoring input"));
 		return false;
 	}
 	
 	if (!CurrentNode)
 	{
+		UE_LOG(LogTemp, Error, TEXT("[Movement] No current node!"));
 		return false;
 	}
+
+	// Check turn system
+	if (UWorld* World = GetWorld())
+	{
+		if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
+		{
+			if (!TurnManager->CanPlayerAct())
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[Movement] Cannot act - not player's turn or waiting for input"));
+				return false;
+			}
+		}
+	}
 	
+	// Find next node
 	UHGONodeGraphComponent* NextNode = CurrentNode->GetNodeInDirection(Direction);
 
 	if (!NextNode)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[Movement] No node in that direction"));
 		return false;
 	}
 	
+	// Start movement
 	TargetNode = NextNode;
 	bIsMoving = true;
 	MovementProgress = 0.0f;
+
+	UE_LOG(LogTemp, Log, TEXT("[Movement] Starting move from node %d to node %d"), 
+		CurrentNode->NodeData.NodeID, TargetNode->NodeData.NodeID);
+
+	NotifyMovementStarted();
 
 	return true;
 }
@@ -55,138 +79,138 @@ void UHGOGraphMovementComponent::SetCurrentNode(UHGONodeGraphComponent* NewNode)
 
 void UHGOGraphMovementComponent::SwitchWorldGraph()
 {
-	 AHGOTacticalLevelGenerator* Generator = nullptr;
+	AHGOTacticalLevelGenerator* Generator = nullptr;
     
-    for (TActorIterator<AHGOTacticalLevelGenerator> GeneratorItr(GetWorld()); GeneratorItr; ++GeneratorItr)
-    {
-        Generator = *GeneratorItr;
-        break;
-    }
+	for (TActorIterator<AHGOTacticalLevelGenerator> GeneratorItr(GetWorld()); GeneratorItr; ++GeneratorItr)
+	{
+		Generator = *GeneratorItr;
+		break;
+	}
 
-    if (!Generator)
-        return;
+	if (!Generator)
+		return;
 	
-    int32 LinkedNodeID = CurrentNode->NodeData.LinkedUpsideDownNodeID;
+	int32 LinkedNodeID = CurrentNode->NodeData.LinkedUpsideDownNodeID;
 
-    if (LinkedNodeID < 0)
-        return;
+	if (LinkedNodeID < 0)
+		return;
 	
 	
-    UHGONodeGraphComponent* LinkedNode = nullptr;
+	UHGONodeGraphComponent* LinkedNode = nullptr;
 
-    for (UHGONodeGraphComponent* NodeComp : Generator->NodeGraphs)
-    {
-        if (!NodeComp) continue;
+	for (UHGONodeGraphComponent* NodeComp : Generator->NodeGraphs)
+	{
+		if (!NodeComp) continue;
     	
-        if (NodeComp->NodeData.LinkedUpsideDownNodeID == LinkedNodeID)
-        {
-            // Si on est dans le monde normal, chercher le node upside-down
-            if (!bInUpsideDownWorld && NodeComp->NodeData.bIsUpsideDownNode)
-            {
-                LinkedNode = NodeComp;
-                break;
-            }
-            // Si on est dans le monde upside-down, chercher le node normal
-            else if (bInUpsideDownWorld && !NodeComp->NodeData.bIsUpsideDownNode)
-            {
-                LinkedNode = NodeComp;
-                break;
-            }
-        }
-    }
+		if (NodeComp->NodeData.LinkedUpsideDownNodeID == LinkedNodeID)
+		{
+			// Si on est dans le monde normal, chercher le node upside-down
+			if (!bInUpsideDownWorld && NodeComp->NodeData.bIsUpsideDownNode)
+			{
+				LinkedNode = NodeComp;
+				break;
+			}
+			// Si on est dans le monde upside-down, chercher le node normal
+			else if (bInUpsideDownWorld && !NodeComp->NodeData.bIsUpsideDownNode)
+			{
+				LinkedNode = NodeComp;
+				break;
+			}
+		}
+	}
 
-    if (!LinkedNode)
-    {
-        UE_LOG(LogTemp, Error, TEXT("Linked node not found! ID: %d"), LinkedNodeID);
-        return;
-    }
+	if (!LinkedNode)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Linked node not found! ID: %d"), LinkedNodeID);
+		return;
+	}
 
-    // Préparer les listes de nodes/edges à afficher/cacher
-    TArray<UHGONodeGraphComponent*> NormalNodes;
-    TArray<UHGONodeGraphComponent*> UpsideDownNodes;
-    TArray<UHGOEdgeGraphComponent*> NormalEdges;
-    TArray<UHGOEdgeGraphComponent*> UpsideDownEdges;
+	// Préparer les listes de nodes/edges à afficher/cacher
+	TArray<UHGONodeGraphComponent*> NormalNodes;
+	TArray<UHGONodeGraphComponent*> UpsideDownNodes;
+	TArray<UHGOEdgeGraphComponent*> NormalEdges;
+	TArray<UHGOEdgeGraphComponent*> UpsideDownEdges;
 
-    // Séparer les nodes
-    for (UHGONodeGraphComponent* NodeComp : Generator->NodeGraphs)
-    {
-        if (!NodeComp) continue;
+	// Séparer les nodes
+	for (UHGONodeGraphComponent* NodeComp : Generator->NodeGraphs)
+	{
+		if (!NodeComp) continue;
 
-        if (NodeComp->NodeData.bIsUpsideDownNode)
-        {
-            UpsideDownNodes.Add(NodeComp);
-        }
-        else
-        {
-            NormalNodes.Add(NodeComp);
-        }
-    }
+		if (NodeComp->NodeData.bIsUpsideDownNode)
+		{
+			UpsideDownNodes.Add(NodeComp);
+		}
+		else
+		{
+			NormalNodes.Add(NodeComp);
+		}
+	}
 
-    // Séparer les edges
-    for (UHGOEdgeGraphComponent* EdgeComp : Generator->EdgeGraphs)
-    {
-        if (!EdgeComp) continue;
+	// Séparer les edges
+	for (UHGOEdgeGraphComponent* EdgeComp : Generator->EdgeGraphs)
+	{
+		if (!EdgeComp) continue;
 
-        // Un edge est upside-down si ses deux nodes sont upside-down
-        bool bSourceIsUpsideDown = false;
-        bool bTargetIsUpsideDown = false;
+		// Un edge est upside-down si ses deux nodes sont upside-down
+		bool bSourceIsUpsideDown = false;
+		bool bTargetIsUpsideDown = false;
 
-        for (UHGONodeGraphComponent* NodeComp : Generator->NodeGraphs)
-        {
-            if (!NodeComp) continue;
+		for (UHGONodeGraphComponent* NodeComp : Generator->NodeGraphs)
+		{
+			if (!NodeComp) continue;
 
-            if (NodeComp->NodeData.NodeID == EdgeComp->EdgeData.SourceNodeID)
-            {
-                bSourceIsUpsideDown = NodeComp->NodeData.bIsUpsideDownNode;
-            }
-            if (NodeComp->NodeData.NodeID == EdgeComp->EdgeData.TargetNodeID)
-            {
-                bTargetIsUpsideDown = NodeComp->NodeData.bIsUpsideDownNode;
-            }
-        }
+			if (NodeComp->NodeData.NodeID == EdgeComp->EdgeData.SourceNodeID)
+			{
+				bSourceIsUpsideDown = NodeComp->NodeData.bIsUpsideDownNode;
+			}
+			if (NodeComp->NodeData.NodeID == EdgeComp->EdgeData.TargetNodeID)
+			{
+				bTargetIsUpsideDown = NodeComp->NodeData.bIsUpsideDownNode;
+			}
+		}
 
-        // L'edge appartient au monde upside-down si au moins un node l'est
-        if (bSourceIsUpsideDown || bTargetIsUpsideDown)
-        {
-            UpsideDownEdges.Add(EdgeComp);
-        }
-        else
-        {
-            NormalEdges.Add(EdgeComp);
-        }
-    }
+		// L'edge appartient au monde upside-down si au moins un node l'est
+		if (bSourceIsUpsideDown || bTargetIsUpsideDown)
+		{
+			UpsideDownEdges.Add(EdgeComp);
+		}
+		else
+		{
+			NormalEdges.Add(EdgeComp);
+		}
+	}
 
-    // Switch le monde
-    if (bInUpsideDownWorld)
-    {
-        // Retour au monde normal
-        UE_LOG(LogTemp, Log, TEXT("Switching to NORMAL world"));
-    	GetWorld()->GetAuthGameMode<AHGOGameMode>()->OnSwitchWorldGraph.Broadcast(false);
+	// Switch le monde
+	if (bInUpsideDownWorld)
+	{
+		// Retour au monde normal
+		UE_LOG(LogTemp, Log, TEXT("Switching to NORMAL world"));
+		GetWorld()->GetAuthGameMode<AHGOGameMode>()->OnSwitchWorldGraph.Broadcast(false);
         
-        HideShowGraph(UpsideDownEdges, UpsideDownNodes, true);  // Cacher upside-down
-        HideShowGraph(NormalEdges, NormalNodes, false);         // Afficher normal
+		HideShowGraph(UpsideDownEdges, UpsideDownNodes, true);  // Cacher upside-down
+		HideShowGraph(NormalEdges, NormalNodes, false);         // Afficher normal
         
-        bInUpsideDownWorld = false;
-    }
-    else
-    {
-        // Passage au monde upside-down
-        UE_LOG(LogTemp, Log, TEXT("Switching to UPSIDE-DOWN world"));
-    	GetWorld()->GetAuthGameMode<AHGOGameMode>()->OnSwitchWorldGraph.Broadcast(true);
+		bInUpsideDownWorld = false;
+	}
+	else
+	{
+		// Passage au monde upside-down
+		UE_LOG(LogTemp, Log, TEXT("Switching to UPSIDE-DOWN world"));
+		GetWorld()->GetAuthGameMode<AHGOGameMode>()->OnSwitchWorldGraph.Broadcast(true);
         
-        HideShowGraph(NormalEdges, NormalNodes, true);          // Cacher normal
-        HideShowGraph(UpsideDownEdges, UpsideDownNodes, false); // Afficher upside-down
+		HideShowGraph(NormalEdges, NormalNodes, true);          // Cacher normal
+		HideShowGraph(UpsideDownEdges, UpsideDownNodes, false); // Afficher upside-down
         
-        bInUpsideDownWorld = true;
-    }
+		bInUpsideDownWorld = true;
+	}
 
-    // Téléporter le joueur sur le node lié
-    CurrentNode = LinkedNode;
-    GetOwner()->SetActorLocation(LinkedNode->GetComponentLocation());
+	// Téléporter le joueur sur le node lié
+	CurrentNode = LinkedNode;
+	GetOwner()->SetActorLocation(LinkedNode->GetComponentLocation());
 
-    UE_LOG(LogTemp, Log, TEXT("Switched to node ID: %d (IsUpsideDown: %s)"), 
-        LinkedNode->NodeData.NodeID,
-        LinkedNode->NodeData.bIsUpsideDownNode ? TEXT("Yes") : TEXT("No"));
+	UE_LOG(LogTemp, Log, TEXT("Switched to node ID: %d (IsUpsideDown: %s)"), 
+		LinkedNode->NodeData.NodeID,
+		LinkedNode->NodeData.bIsUpsideDownNode ? TEXT("Yes") : TEXT("No"));
 }
 
 void UHGOGraphMovementComponent::UpdateMovement(float DeltaTime)
@@ -198,20 +222,29 @@ void UHGOGraphMovementComponent::UpdateMovement(float DeltaTime)
 
 	if (MovementProgress >= 1.0f)
 	{
+		// Movement complete
 		GetOwner()->SetActorLocation(TargetNode->GetComponentLocation());
 		CurrentNode = TargetNode;
 		TargetNode = nullptr;
 		bIsMoving = false;
 		MovementProgress = 0.0f;
 
+		UE_LOG(LogTemp, Log, TEXT("[Movement] Arrived at node %d"), CurrentNode->NodeData.NodeID);
+
+		// Check for portal BEFORE notifying turn system
 		if (CurrentNode->NodeData.NodeType == ENodeType::UpsideDownPortal)
 		{
-			UE_LOG(LogTemp, Log, TEXT("Reached UpsideDown portal node!"));
+			UE_LOG(LogTemp, Log, TEXT("[Movement] Reached UpsideDown portal node!"));
 			SwitchWorldGraph();
+		} else
+		{
+			NotifyMovementCompleted();
 		}
+		
 	}
 	else
 	{
+		// Interpolate position
 		FVector StartPos = CurrentNode->GetComponentLocation();
 		FVector EndPos = TargetNode->GetComponentLocation();
 		FVector NewPos = FMath::Lerp(StartPos, EndPos, MovementProgress);
@@ -222,7 +255,7 @@ void UHGOGraphMovementComponent::UpdateMovement(float DeltaTime)
 
 void UHGOGraphMovementComponent::UpdateGrabFeedback(float DeltaTime)
 {
-	
+	// Empty for now - could add visual feedback here
 }
 
 void UHGOGraphMovementComponent::HideShowGraph(TArray<UHGOEdgeGraphComponent*> EdgesToProcess, TArray<UHGONodeGraphComponent*> NodesToProcess, bool bHide)
@@ -244,11 +277,32 @@ void UHGOGraphMovementComponent::HideShowGraph(TArray<UHGOEdgeGraphComponent*> E
 	}
 }
 
+void UHGOGraphMovementComponent::NotifyMovementStarted()
+{
+	if (UWorld* World = GetWorld())
+	{
+		if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
+		{
+			TurnManager->RegisterActionStarted();
+		}
+	}
+}
+
+void UHGOGraphMovementComponent::NotifyMovementCompleted()
+{
+	if (UWorld* World = GetWorld())
+	{
+		if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
+		{
+			TurnManager->RegisterActionCompleted();
+		}
+	}
+}
+
 // Called when the game starts
 void UHGOGraphMovementComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	
 }
 
 
@@ -262,4 +316,3 @@ void UHGOGraphMovementComponent::TickComponent(float DeltaTime, ELevelTick TickT
 		UpdateMovement(DeltaTime);
 	}
 }
-

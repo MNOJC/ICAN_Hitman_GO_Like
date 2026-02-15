@@ -16,8 +16,7 @@ void AHGOPlayerController::BeginPlay()
 
 	if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
 	{
-		if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
-			LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
 		{
 			Subsystem->AddMappingContext(PlayerMappingContext, 0);
 		}
@@ -83,7 +82,7 @@ void AHGOPlayerController::CameraRotatePressed(const FInputActionValue& Value)
 void AHGOPlayerController::CameraRotateReleased(const FInputActionValue& Value)
 {
 	bRotateCamera = false;
-	UE_LOG(LogTemp, Warning, TEXT("Camera Rotate Released"));
+	//UE_LOG(LogTemp, Warning, TEXT("Camera Rotate Released"));
 	PawnReleased(FInputActionValue());
 }
 
@@ -97,7 +96,7 @@ void AHGOPlayerController::PawnPressed(const FInputActionValue& Value)
 
 void AHGOPlayerController::PawnReleased(const FInputActionValue& Value)
 {
-	UE_LOG(LogTemp, Warning, TEXT("Pawn Released"));
+	//UE_LOG(LogTemp, Warning, TEXT("Pawn Released"));
 	
 	if (bPawnSelected)
 	{

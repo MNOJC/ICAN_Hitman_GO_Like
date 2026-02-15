@@ -21,7 +21,7 @@ struct FNodeData
 	ENodeType NodeType = ENodeType::Normal;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bIsUpsideDownNode;
+	bool bIsUpsideDownNode = false;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int32 LinkedUpsideDownNodeID = 0;
