@@ -1,10 +1,14 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Core/HGOTacticalTurnManager.h"
+#include "Core/HGOEnemyPawn.h"
+#include "EngineUtils.h"
 
 void UHGOTacticalTurnManager::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+
+	TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UHGOTacticalTurnManager::Tick));
 	
 	UE_LOG(LogTemp, Log, TEXT("[TurnManager] Initialized"));
 	
@@ -19,7 +23,7 @@ void UHGOTacticalTurnManager::Deinitialize()
 	UE_LOG(LogTemp, Log, TEXT("[TurnManager] Deinitialized"));
 }
 
-void UHGOTacticalTurnManager::Tick(float DeltaTime)
+bool UHGOTacticalTurnManager::Tick(float DeltaTime)
 {
 	UE_LOG(LogTemp, Verbose, TEXT("[TurnManager] Tick - Current Turn: %s | Phase: %s"), *UEnum::GetValueAsString(CurrentTurnState), *UEnum::GetValueAsString(CurrentPhase));	
 	switch (CurrentTurnState)
@@ -32,7 +36,10 @@ void UHGOTacticalTurnManager::Tick(float DeltaTime)
 			TickEnemyTurn(DeltaTime);
 			break;
 	}
+
+	return true;
 }
+
 
 void UHGOTacticalTurnManager::RegisterActionStarted()
 {
@@ -59,12 +66,11 @@ void UHGOTacticalTurnManager::ChangePhase(ETurnPhase NewPhase)
 		
 	CurrentPhase = NewPhase;
 	OnPhaseChanged.Broadcast(CurrentPhase);
-	
-	UE_LOG(LogTemp, Warning, TEXT("[TurnManager] Phase changed to: %d"), CurrentPhase);
 
-	if (CurrentPhase == ETurnPhase::TransitioningTurn)
+	if (UEnum* EnumPtr = StaticEnum<ETurnPhase>())
 	{
-		ChangeTurn(CurrentTurnState == ETurnState::PlayerTurn ? ETurnState::EnemyTurn : ETurnState::PlayerTurn);
+		UE_LOG(LogTemp, Warning, TEXT("[TurnManager] Phase changed to: %s"),
+			*EnumPtr->GetNameStringByValue((int64)CurrentPhase));
 	}
 }
 
@@ -92,7 +98,6 @@ void UHGOTacticalTurnManager::ChangeTurn(ETurnState NewTurnState)
 
 void UHGOTacticalTurnManager::TickPlayerTurn(float DeltaTime)
 {
-	GEngine->AddOnScreenDebugMessage(1, 0.0f, FColor::Green, FString::Printf(TEXT("[TurnManager] %s | Phase: %s"), *UEnum::GetValueAsString(CurrentTurnState), *UEnum::GetValueAsString(CurrentPhase)));
 
 	// If action completed, transition to enemy turn
 	if (CurrentPhase == ETurnPhase::TransitioningTurn)
@@ -103,6 +108,7 @@ void UHGOTacticalTurnManager::TickPlayerTurn(float DeltaTime)
 
 void UHGOTacticalTurnManager::TickEnemyTurn(float DeltaTime)
 {
+	
 	switch (CurrentPhase)
 	{
 		case ETurnPhase::WaitingForInput:
@@ -112,21 +118,25 @@ void UHGOTacticalTurnManager::TickEnemyTurn(float DeltaTime)
 			if (EnemyTurnTimer >= 0.5f) // Short delay before enemy acts
 			{
 				UE_LOG(LogTemp, Warning, TEXT("[TurnManager] Enemy starting action"));
+				
+				// Find and execute enemy movement
+				for (TActorIterator<AHGOEnemyPawn> EnemyItr(GetWorld()); EnemyItr; ++EnemyItr)
+				{
+					AHGOEnemyPawn* Enemy = *EnemyItr;
+					if (Enemy)
+					{
+						Enemy->ExecuteEnemyMove();
+					}
+				}
+				
 				ChangePhase(ETurnPhase::ExecutingAction);
 				EnemyTurnTimer = 0.f;
 			}
 			break;
 			
 		case ETurnPhase::ExecutingAction:
-			// Simulate enemy action duration
-			EnemyTurnTimer += DeltaTime;
-			
-			if (EnemyTurnTimer >= EnemyTurnDuration)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("[TurnManager] Enemy action complete"));
-				ChangePhase(ETurnPhase::TransitioningTurn);
-				EnemyTurnTimer = 0.f;
-			}
+			// Wait for movement to complete
+			// GraphMovementComponent will call RegisterActionCompleted() automatically
 			break;
 			
 		case ETurnPhase::TransitioningTurn:

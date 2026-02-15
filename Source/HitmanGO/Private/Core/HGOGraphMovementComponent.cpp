@@ -30,19 +30,6 @@ bool UHGOGraphMovementComponent::TryMoveInDirection(ENodeDirection Direction)
 		UE_LOG(LogTemp, Error, TEXT("[Movement] No current node!"));
 		return false;
 	}
-
-	// Check turn system
-	if (UWorld* World = GetWorld())
-	{
-		if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
-		{
-			if (!TurnManager->CanPlayerAct())
-			{
-				UE_LOG(LogTemp, Warning, TEXT("[Movement] Cannot act - not player's turn or waiting for input"));
-				return false;
-			}
-		}
-	}
 	
 	// Find next node
 	UHGONodeGraphComponent* NextNode = CurrentNode->GetNodeInDirection(Direction);
@@ -64,6 +51,86 @@ bool UHGOGraphMovementComponent::TryMoveInDirection(ENodeDirection Direction)
 	NotifyMovementStarted();
 
 	return true;
+}
+
+bool UHGOGraphMovementComponent::TryMoveToNodeID(int32 TargetNodeID)
+{
+	// Check if we can move
+	if (bIsMoving)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Movement] Already moving, ignoring request"));
+		return false;
+	}
+	
+	if (!CurrentNode)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[Movement] No current node!"));
+		return false;
+	}
+
+	// Find the target node by ID
+	UHGONodeGraphComponent* TargetNodeComp = nullptr;
+	
+	AHGOTacticalLevelGenerator* Generator = nullptr;
+	for (TActorIterator<AHGOTacticalLevelGenerator> GeneratorItr(GetWorld()); GeneratorItr; ++GeneratorItr)
+	{
+		Generator = *GeneratorItr;
+		break;
+	}
+
+	if (!Generator)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[Movement] No level generator found!"));
+		return false;
+	}
+
+	// Search for the target node
+	for (UHGONodeGraphComponent* NodeComp : Generator->NodeGraphs)
+	{
+		if (NodeComp && NodeComp->NodeData.NodeID == TargetNodeID)
+		{
+			TargetNodeComp = NodeComp;
+			break;
+		}
+	}
+
+	if (!TargetNodeComp)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[Movement] Target node %d not found!"), TargetNodeID);
+		return false;
+	}
+
+	// Check if target node is adjacent to current node
+	TArray<ENodeDirection> AllDirections = {
+		ENodeDirection::North,
+		ENodeDirection::South,
+		ENodeDirection::East,
+		ENodeDirection::West
+	};
+
+	ENodeDirection DirectionToTarget = ENodeDirection::None;
+	bool bFoundDirection = false;
+
+	for (ENodeDirection Direction : AllDirections)
+	{
+		UHGONodeGraphComponent* NodeInDirection = CurrentNode->GetNodeInDirection(Direction);
+		if (NodeInDirection && NodeInDirection->NodeData.NodeID == TargetNodeID)
+		{
+			DirectionToTarget = Direction;
+			bFoundDirection = true;
+			break;
+		}
+	}
+
+	if (!bFoundDirection)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[Movement] Target node %d is not adjacent to current node %d"), 
+			TargetNodeID, CurrentNode->NodeData.NodeID);
+		return false;
+	}
+
+	// Use the existing TryMoveInDirection method
+	return TryMoveInDirection(DirectionToTarget);
 }
 
 void UHGOGraphMovementComponent::SetCurrentNode(UHGONodeGraphComponent* NewNode)

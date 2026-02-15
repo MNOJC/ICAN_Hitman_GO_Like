@@ -3,6 +3,7 @@
 
 #include "Core/HGOPlayerPawn.h"
 #include "Core/HGOPlayerController.h"
+#include "Core/HGOTacticalTurnManager.h"
 #include "Graph/HGOTacticalLevelGenerator.h"
 
 // Sets default values
@@ -45,6 +46,12 @@ void AHGOPlayerPawn::OnPawnClicked(UPrimitiveComponent* TouchedComponent, FKey B
 		AHGOPlayerController* HGOController = Cast<AHGOPlayerController>(World->GetFirstPlayerController());
 		if (HGOController)
 		{
+			if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
+			{
+				if (!TurnManager->IsPlayerTurn())
+					return;
+				
+			}
 			//UE_LOG(LogTemp, Warning, TEXT("Pawn Clicked"));
 			HGOController->PawnPressed(FInputActionValue());
 		}

@@ -34,6 +34,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	void SwitchWorldGraph();
 
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	UHGONodeGraphComponent* GetCurrentNode() const { return CurrentNode; }
+
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	bool TryMoveToNodeID(int32 TargetNodeID);
+
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;

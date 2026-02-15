@@ -47,8 +47,7 @@ public:
 	virtual void Deinitialize() override;
 	
 	// Tick function
-	void Tick(float DeltaTime);
-	bool IsTickable() const { return true; }
+	bool Tick(float DeltaTime);
 
 	// Public query functions
 	UFUNCTION(BlueprintCallable, Category = "Turn System")
@@ -85,7 +84,6 @@ private:
 
 	// Enemy turn simulation
 	float EnemyTurnTimer = 0.f;
-	float EnemyTurnDuration = 2.0f; // Debug: simulates enemy "thinking" time
 
 	// State machine helpers
 	void ChangePhase(ETurnPhase NewPhase);
@@ -97,4 +95,6 @@ private:
 	
 	void StartPlayerTurn();
 	void StartEnemyTurn();
+
+	FTSTicker::FDelegateHandle TickHandle;
 };
