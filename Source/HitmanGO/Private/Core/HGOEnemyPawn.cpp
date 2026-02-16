@@ -4,6 +4,7 @@
 #include "Core/HGOEnemyPawn.h"
 #include "Graph/HGOTacticalLevelGenerator.h"
 #include "EngineUtils.h"
+#include "Core/HGOTacticalTurnManager.h"
 
 // Sets default values
 AHGOEnemyPawn::AHGOEnemyPawn()
@@ -87,8 +88,7 @@ void AHGOEnemyPawn::ExecuteEnemyMove()
 		UE_LOG(LogTemp, Error, TEXT("[EnemyPawn] No current node!"));
 		return;
 	}
-
-	// Increment to next path index (loop with modulo)
+	
 	CurrentPathIndex = (CurrentPathIndex + 1) % MovementPathNodeIDs.Num();
 	int32 TargetNodeID = MovementPathNodeIDs[CurrentPathIndex];
 
@@ -106,11 +106,93 @@ void AHGOEnemyPawn::ExecuteEnemyMove()
 	}
 }
 
+void AHGOEnemyPawn::ExecuteEnemyRotation()
+{
+	if (!GraphMovementComponent || !GraphMovementComponent->GetCurrentNode())
+	{
+		UE_LOG(LogTemp, Error, TEXT("[EnemyPawn] Cannot calculate rotation - no current node"));
+		return;
+	}
+
+	// Récupérer la prochaine node dans le path
+	int32 NextPathIndex = (CurrentPathIndex + 1) % MovementPathNodeIDs.Num();
+	int32 NextNodeID = MovementPathNodeIDs[NextPathIndex];
+
+	// Trouver la node correspondante
+	AHGOTacticalLevelGenerator* Generator = nullptr;
+	for (TActorIterator<AHGOTacticalLevelGenerator> GeneratorItr(GetWorld()); GeneratorItr; ++GeneratorItr)
+	{
+		Generator = *GeneratorItr;
+		break;
+	}
+
+	if (!Generator)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[EnemyPawn] No level generator found for rotation"));
+		return;
+	}
+
+	UHGONodeGraphComponent* NextNode = nullptr;
+	for (UHGONodeGraphComponent* NodeComp : Generator->NodeGraphs)
+	{
+		if (NodeComp && NodeComp->NodeData.NodeID == NextNodeID)
+		{
+			NextNode = NodeComp;
+			break;
+		}
+	}
+
+	if (!NextNode)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[EnemyPawn] Next node %d not found"), NextNodeID);
+		return;
+	}
+
+	// Calculer la direction vers la prochaine node
+	FVector CurrentPos = GraphMovementComponent->GetCurrentNode()->GetComponentLocation();
+	FVector NextPos = NextNode->GetComponentLocation();
+	FVector Direction = (NextPos - CurrentPos).GetSafeNormal();
+
+	// Calculer la rotation nécessaire (seulement Yaw pour rotation horizontale)
+	FRotator TargetRotation = Direction.Rotation();
+	TargetRotation.Pitch = 0.0f; // Garder l'ennemi droit
+	TargetRotation.Roll = 0.0f;
+
+	NextRotation = TargetRotation;
+	bIsRotating = true;
+
+	UE_LOG(LogTemp, Log, TEXT("[EnemyPawn] Rotating to face node %d (Yaw: %.1f)"), 
+		NextNodeID, TargetRotation.Yaw);
+}
+
+void AHGOEnemyPawn::UpdateEnemyRotation(float DeltaTime)
+{
+	if (bIsRotating)
+	{
+		FRotator TargetRotation = FMath::RInterpConstantTo(GetActorRotation(), NextRotation, DeltaTime, 360.f); 
+		this->SetActorRotation(TargetRotation);
+
+		if (TargetRotation.Equals(NextRotation, 1.0f))
+		{
+			bIsRotating = false;
+			UE_LOG(LogTemp, Log, TEXT("[EnemyPawn] Rotation complete"));
+			if (UWorld* World = GetWorld())
+			{
+				if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
+				{
+					TurnManager->RegisterActionCompleted();
+				}
+			}
+		}
+	}
+}
+
 // Called every frame
 void AHGOEnemyPawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	UpdateEnemyRotation(DeltaTime);
 }
 
 // Called to bind functionality to input

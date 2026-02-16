@@ -44,9 +44,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Enemy")
 	void ExecuteEnemyMove();
 
+	void ExecuteEnemyRotation();
+
+	
+
 private:
 	int32 CurrentPathIndex = 0;
 
 	void InitEnemyPosition();
+	void UpdateEnemyRotation(float DeltaTime);
+
+	bool bIsRotating = false;
+	FRotator NextRotation;
 
 };

@@ -3,6 +3,7 @@
 #include "Core/HGOGraphMovementComponent.h"
 #include "Core/HGOTacticalTurnManager.h"
 #include "EngineUtils.h"
+#include "Core/HGOEnemyPawn.h"
 #include "Graph/HGOTacticalLevelGenerator.h"
 
 // Sets default values for this component's properties
@@ -315,6 +316,19 @@ void UHGOGraphMovementComponent::UpdateMovement(float DeltaTime)
 		FVector StartPos = CurrentNode->GetComponentLocation();
 		FVector EndPos = TargetNode->GetComponentLocation();
 		FVector NewPos = FMath::Lerp(StartPos, EndPos, MovementProgress);
+		
+		// Ajouter un arc de mouvement pour l'EnemyPawn
+		if (Cast<AHGOEnemyPawn>(GetOwner()))
+		{
+			// Hauteur de l'arc (ajustable)
+			float ArcHeight = 150.0f;
+			
+			// Calculer la hauteur en utilisant une courbe parabolique
+			// sin donne une courbe douce qui monte puis redescend
+			float HeightOffset = FMath::Sin(MovementProgress * PI) * ArcHeight;
+			
+			NewPos.Z += HeightOffset;
+		}
         
 		GetOwner()->SetActorLocation(NewPos);
 	}
@@ -357,6 +371,12 @@ void UHGOGraphMovementComponent::NotifyMovementStarted()
 
 void UHGOGraphMovementComponent::NotifyMovementCompleted()
 {
+	if(AHGOEnemyPawn* EnemyPawn = Cast<AHGOEnemyPawn>(GetOwner()))
+	{
+		EnemyPawn->ExecuteEnemyRotation();
+		return;	
+	}
+	
 	if (UWorld* World = GetWorld())
 	{
 		if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
@@ -364,6 +384,8 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 			TurnManager->RegisterActionCompleted();
 		}
 	}
+
+	
 }
 
 // Called when the game starts
