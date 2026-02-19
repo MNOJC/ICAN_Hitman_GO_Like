@@ -299,12 +299,13 @@ void UHGOGraphMovementComponent::UpdateMovement(float DeltaTime)
 
 		UE_LOG(LogTemp, Log, TEXT("[Movement] Arrived at node %d"), CurrentNode->NodeData.NodeID);
 
-		// Check for portal BEFORE notifying turn system
-		if (CurrentNode->NodeData.NodeType == ENodeType::UpsideDownPortal)
+		// Check for PlayerPortal BEFORE notifying turn system
+		if (CurrentNode->NodeData.NodeType == ENodeType::PlayerPortal)
 		{
-			UE_LOG(LogTemp, Log, TEXT("[Movement] Reached UpsideDown portal node!"));
+			UE_LOG(LogTemp, Log, TEXT("[Movement] Player reached PlayerPortal node!"));
 			SwitchWorldGraph();
-		} else
+		} 
+		else
 		{
 			NotifyMovementCompleted();
 		}

@@ -12,7 +12,8 @@ enum class ENodeType : uint8
 	Start		UMETA(DisplayName = "Start"),
 	Goal		UMETA(DisplayName = "Goal"),
 	Blocked		UMETA(DisplayName = "Blocked"),
-	UpsideDownPortal		UMETA(DisplayName = "UpsideDownPortal"),
+	PlayerPortal		UMETA(DisplayName = "PlayerPortal"),
+	EnemyPortal		UMETA(DisplayName = "EnemyPortal"),
 };
 
 UENUM(BlueprintType)

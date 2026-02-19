@@ -25,7 +25,20 @@ void UHGOTacticalTurnManager::Deinitialize()
 
 bool UHGOTacticalTurnManager::Tick(float DeltaTime)
 {
-	UE_LOG(LogTemp, Verbose, TEXT("[TurnManager] Tick - Current Turn: %s | Phase: %s"), *UEnum::GetValueAsString(CurrentTurnState), *UEnum::GetValueAsString(CurrentPhase));	
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1, // -1 = nouvelle ligne à chaque appel (change si tu veux écraser)
+			0.f, // 0 = affiché une seule frame (mets >0 pour durée)
+			FColor::Yellow,
+			FString::Printf(
+				TEXT("[TurnManager] Tick - Current Turn: %s | Phase: %s"),
+				*UEnum::GetValueAsString(CurrentTurnState),
+				*UEnum::GetValueAsString(CurrentPhase)
+			)
+		);
+	}
+	
 	switch (CurrentTurnState)
 	{
 		case ETurnState::PlayerTurn:
@@ -112,14 +125,10 @@ void UHGOTacticalTurnManager::TickEnemyTurn(float DeltaTime)
 	switch (CurrentPhase)
 	{
 		case ETurnPhase::WaitingForInput:
-			// Simulate enemy "thinking" time
-			EnemyTurnTimer += DeltaTime;
-			
-			if (EnemyTurnTimer >= 0.5f) // Short delay before enemy acts
-			{
+
+				ChangePhase(ETurnPhase::ExecutingAction);
 				UE_LOG(LogTemp, Warning, TEXT("[TurnManager] Enemy starting action"));
-				
-				// Find and execute enemy movement
+		
 				for (TActorIterator<AHGOEnemyPawn> EnemyItr(GetWorld()); EnemyItr; ++EnemyItr)
 				{
 					AHGOEnemyPawn* Enemy = *EnemyItr;
@@ -129,9 +138,7 @@ void UHGOTacticalTurnManager::TickEnemyTurn(float DeltaTime)
 					}
 				}
 				
-				ChangePhase(ETurnPhase::ExecutingAction);
-				EnemyTurnTimer = 0.f;
-			}
+				
 			break;
 			
 		case ETurnPhase::ExecutingAction:
