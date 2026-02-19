@@ -137,12 +137,57 @@ void AHGOEnemyPawn::ExecuteEnemyRotation()
 		return;
 	}
 
-	// Récupérer la prochaine node dans le path
-	if (GraphMovementComponent->GetCurrentNode()->NodeData.NodeType == ENodeType::EnemyPortal)
-	{
-	}
-	
 	int32 NextNodeID = GetNextNodeID();
+	
+	// Si on est sur un portail et qu'on construit, on veut se tourner vers la node APRÈS le portail
+	// car la prochaine node (dans l'autre monde) est au même endroit
+	if (GraphMovementComponent->GetCurrentNode()->NodeData.NodeType == ENodeType::EnemyPortal 
+		&& PortalState == EEnemyPortalState::Building)
+	{
+		// Calculer la node après le portail
+		// GetNextNodeID() retourne la node dans l'autre monde (même position)
+		// On veut la node d'APRÈS
+		
+		// Simuler l'avancement comme dans CrossPortal
+		int32 SimulatedIndex = CurrentPathIndex;
+		
+		// Avancer une fois (vers la node du portail dans l'autre monde)
+		if (PathFollowType == EPathFollowType::Loop)
+		{
+			SimulatedIndex = (SimulatedIndex + 1) % MovementPathNodeIDs.Num();
+		}
+		else // PingPong
+		{
+			if (bReverseDirection)
+			{
+				SimulatedIndex = FMath::Max(0, SimulatedIndex - 1);
+			}
+			else
+			{
+				SimulatedIndex = FMath::Min(MovementPathNodeIDs.Num() - 1, SimulatedIndex + 1);
+			}
+		}
+		
+		// Avancer encore une fois (vers la node réelle après le portail)
+		if (PathFollowType == EPathFollowType::Loop)
+		{
+			SimulatedIndex = (SimulatedIndex + 1) % MovementPathNodeIDs.Num();
+		}
+		else // PingPong
+		{
+			if (bReverseDirection)
+			{
+				SimulatedIndex = FMath::Max(0, SimulatedIndex - 1);
+			}
+			else
+			{
+				SimulatedIndex = FMath::Min(MovementPathNodeIDs.Num() - 1, SimulatedIndex + 1);
+			}
+		}
+		
+		NextNodeID = MovementPathNodeIDs[SimulatedIndex];
+		UE_LOG(LogTemp, Log, TEXT("[EnemyPawn] On portal - rotating towards node AFTER crossing: %d"), NextNodeID);
+	}
 
 	// Trouver la node correspondante
 	AHGOTacticalLevelGenerator* Generator = nullptr;
@@ -317,8 +362,10 @@ void AHGOEnemyPawn::BuildPortal()
 		if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
 		{
 			TurnManager->RegisterActionStarted();
-			// Immédiatement la compléter (passage en TransitioningTurn)
-			TurnManager->RegisterActionCompleted();
+			
+			// Lancer la rotation vers la prochaine node après le portail
+			// Cela appellera automatiquement RegisterActionCompleted() à la fin
+			ExecuteEnemyRotation();
 		}
 	}
 	
