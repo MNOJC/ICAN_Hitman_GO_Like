@@ -22,7 +22,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Classes")
 	TSubclassOf<AActor> LevelCameraClass;
 
-	UPROPERTY(BlueprintAssignable, Category = "World")
+	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "World")
 	FOnSwitchWorldGraph OnSwitchWorldGraph;
 	
 private:

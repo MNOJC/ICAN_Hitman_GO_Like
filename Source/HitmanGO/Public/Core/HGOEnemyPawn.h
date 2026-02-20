@@ -71,6 +71,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Enemy")
 	bool IsInUpsideDownWorld() const { return bInUpsideDownWorld; }
 
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Enemy")
+	bool OnEnemyPassThroughPortal();
+
 private:
 	// Path navigation
 	int32 CurrentPathIndex = 0;

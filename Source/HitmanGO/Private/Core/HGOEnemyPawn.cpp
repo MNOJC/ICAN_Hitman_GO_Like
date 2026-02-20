@@ -427,6 +427,8 @@ void AHGOEnemyPawn::CrossPortal()
 	GraphMovementComponent->SetCurrentNode(LinkedNode);
 	UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Crossed to node %d in %s world"), 
 		LinkedNodeID, bInUpsideDownWorld ? TEXT("UPSIDE-DOWN") : TEXT("NORMAL"));
+
+	OnEnemyPassThroughPortal();
 	
 	// IMPORTANT: Avancer dans le path pour pointer sur la node après le portail
 	// Car la node actuelle (LinkedNode) est au même endroit que la précédente
@@ -464,6 +466,7 @@ void AHGOEnemyPawn::CrossPortal()
 
 void AHGOEnemyPawn::UpdateVisibilityForWorld(bool bPlayerInUpsideDownWorld)
 {
+	OnEnemyPassThroughPortal();
 	// Afficher l'ennemi seulement si il est dans le même monde que le joueur
 	bool bShouldBeVisible = (bInUpsideDownWorld == bPlayerInUpsideDownWorld);
 	
@@ -473,4 +476,10 @@ void AHGOEnemyPawn::UpdateVisibilityForWorld(bool bPlayerInUpsideDownWorld)
 		bShouldBeVisible ? TEXT("VISIBLE") : TEXT("HIDDEN"),
 		bPlayerInUpsideDownWorld ? TEXT("UPSIDE-DOWN") : TEXT("NORMAL"),
 		bInUpsideDownWorld ? TEXT("UPSIDE-DOWN") : TEXT("NORMAL"));
+}
+
+bool AHGOEnemyPawn::OnEnemyPassThroughPortal_Implementation()
+{
+	
+	return bInUpsideDownWorld;
 }
