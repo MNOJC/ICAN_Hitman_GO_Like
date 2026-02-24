@@ -480,6 +480,52 @@ void AHGOEnemyPawn::UpdateVisibilityForWorld(bool bPlayerInUpsideDownWorld)
 
 bool AHGOEnemyPawn::OnEnemyPassThroughPortal_Implementation()
 {
-	
 	return bInUpsideDownWorld;
+}
+
+bool AHGOEnemyPawn::CheckAndKillPlayer()
+{
+	if (!GraphMovementComponent || !GraphMovementComponent->GetCurrentNode())
+	{
+		return false;
+	}
+
+	// Trouver le joueur
+	AHGOPlayerPawn* Player = nullptr;
+	for (TActorIterator<AHGOPlayerPawn> PlayerItr(GetWorld()); PlayerItr; ++PlayerItr)
+	{
+		Player = *PlayerItr;
+		break;
+	}
+
+	if (!Player || !Player->GraphMovementComponent)
+	{
+		return false;
+	}
+
+	UHGONodeGraphComponent* PlayerNode = Player->GraphMovementComponent->GetCurrentNode();
+	if (!PlayerNode)
+	{
+		return false;
+	}
+
+	// Vérifier si le joueur est dans le même monde
+	if (bInUpsideDownWorld != Player->GraphMovementComponent->bInUpsideDownWorld)
+	{
+		return false; // Le joueur est dans un autre monde, on ne peut pas le voir
+	}
+
+	// Vérifier si le joueur est dans le champ de vision (devant, 1 node de distance, connecté)
+	if (GraphMovementComponent->IsNodeInFrontDirection(PlayerNode))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Player detected in vision! Killing player..."));
+
+		GraphMovementComponent->TryMoveToNodeID(PlayerNode->NodeData.NodeID); // Se déplacer vers le joueur pour le "toucher"
+		// Tuer le joueur
+		//Player->KillPlayer();
+		
+		return true;
+	}
+
+	return false;
 }

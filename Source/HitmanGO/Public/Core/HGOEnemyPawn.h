@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "HGOGraphMovementComponent.h"
 #include "GameFramework/Pawn.h"
+#include "Core/HGOPlayerPawn.h"
 #include "HGOEnemyPawn.generated.h"
 
 UENUM(BlueprintType)
@@ -73,6 +74,11 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Enemy")
 	bool OnEnemyPassThroughPortal();
+
+	// Check if player is in vision and kill if true
+	
+	UFUNCTION(BlueprintCallable, Category = "Enemy")
+	bool CheckAndKillPlayer();
 
 private:
 	// Path navigation

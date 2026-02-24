@@ -12,6 +12,9 @@
 
 struct FKey;
 
+// Delegate pour la mort du joueur
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayerDeath);
+
 UCLASS()
 class HITMANGO_API AHGOPlayerPawn : public APawn
 {
@@ -20,6 +23,13 @@ class HITMANGO_API AHGOPlayerPawn : public APawn
 public:
 	// Sets default values for this pawn's properties
 	AHGOPlayerPawn();
+
+	// Delegate appelé quand le joueur meurt
+	UPROPERTY(BlueprintAssignable, Category = "Player|Events")
+	FOnPlayerDeath OnPlayerDeath;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components")
+	UHGOGraphMovementComponent* GraphMovementComponent;
 
 protected:
 	// Called when the game starts or when spawned
@@ -34,8 +44,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components")
 	UBoxComponent* CollisionSwipeComponent;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components")
-	UHGOGraphMovementComponent* GraphMovementComponent;
+	
 
 	UFUNCTION()
 	void OnPawnClicked(UPrimitiveComponent* TouchedComponent, FKey ButtonPressed);
@@ -49,5 +58,9 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	void InitPawnPosition();
+
+	// Fonction pour tuer le joueur
+	UFUNCTION(BlueprintCallable, Category = "Player")
+	void KillPlayer();
 
 };

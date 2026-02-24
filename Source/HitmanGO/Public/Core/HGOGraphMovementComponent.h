@@ -26,6 +26,10 @@ public:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	float MovementSpeed = 700.0f;
+
+	UPROPERTY(BlueprintReadWrite, Category = "State")
+	bool bInUpsideDownWorld = false;
+
 	
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	bool TryMoveInDirection(ENodeDirection Direction);
@@ -41,6 +45,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	bool TryMoveToNodeID(int32 TargetNodeID);
+	
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	bool IsNodeInFrontDirection(UHGONodeGraphComponent* TargetedNode) const;
 
 protected:
 	// Called when the game starts
@@ -49,8 +56,7 @@ protected:
 	bool bIsMoving;
 	UHGONodeGraphComponent* TargetNode;
 	float MovementProgress;
-	bool bInUpsideDownWorld = false;
-
+	
 	void UpdateMovement(float DeltaTime);
 	void UpdateGrabFeedback(float DeltaTime);
 	void HideShowGraph(TArray<UHGOEdgeGraphComponent*> EdgesToProcess, TArray<UHGONodeGraphComponent*> NodesToProcess,bool bHide);

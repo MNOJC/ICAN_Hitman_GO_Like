@@ -145,6 +145,78 @@ void UHGOGraphMovementComponent::SetCurrentNode(UHGONodeGraphComponent* NewNode)
 	}
 }
 
+bool UHGOGraphMovementComponent::IsNodeInFrontDirection(UHGONodeGraphComponent* TargetedNode) const
+{
+	if (!CurrentNode || !TargetedNode || !GetOwner())
+	{
+		return false;
+	}
+
+	// Vérifier si la target est devant (dans la direction du forward)
+	FVector CurrentPos = CurrentNode->GetComponentLocation();
+	FVector TargetPos = TargetedNode->GetComponentLocation();
+	FVector ToTarget = (TargetPos - CurrentPos).GetSafeNormal();
+	FVector Forward = GetOwner()->GetActorForwardVector();
+	
+	// Calculer le dot product (cosinus de l'angle)
+	float DotProduct = FVector::DotProduct(Forward, ToTarget);
+	
+	GEngine->AddOnScreenDebugMessage(
+		-1,
+		2.f,
+		FColor::Yellow,
+		FString::Printf(TEXT("[Vision] Checking node %d -> %d | Dot: %.2f"), 
+			CurrentNode->NodeData.NodeID, TargetedNode->NodeData.NodeID, DotProduct)
+	);
+	
+	// Si dot > 0.7, l'angle est inférieur à ~45 degrés (devant)
+	if (DotProduct < 0.7f)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			2.f,
+			FColor::Orange,
+			TEXT("[Vision] Target not in front (angle too wide)")
+		);
+		return false;
+	}
+
+	// Vérifier qu'il y a une connexion directe entre les nodes
+	// C'EST LA VRAIE VÉRIFICATION DE "1 NODE DE DISTANCE"
+	TArray<ENodeDirection> AllDirections = {
+		ENodeDirection::North,
+		ENodeDirection::South,
+		ENodeDirection::East,
+		ENodeDirection::West
+	};
+
+	for (ENodeDirection Direction : AllDirections)
+	{
+		UHGONodeGraphComponent* AdjacentNode = CurrentNode->GetNodeInDirection(Direction);
+		if (AdjacentNode && AdjacentNode->NodeData.NodeID == TargetedNode->NodeData.NodeID)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				2.f,
+				FColor::Green,
+				FString::Printf(TEXT("[Vision] ✓ PLAYER DETECTED! (Direction: %s)"), 
+					*UEnum::GetValueAsString(Direction))
+			);
+			return true; // La node cible est directement adjacente ET devant
+		}
+	}
+
+	GEngine->AddOnScreenDebugMessage(
+		-1,
+		2.f,
+		FColor::Red,
+		TEXT("[Vision] No direct connection found")
+	);
+	
+	return false; // Pas de connexion directe
+}
+
+
 void UHGOGraphMovementComponent::SwitchWorldGraph()
 {
 	AHGOTacticalLevelGenerator* Generator = nullptr;
@@ -374,10 +446,48 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 {
 	if(AHGOEnemyPawn* EnemyPawn = Cast<AHGOEnemyPawn>(GetOwner()))
 	{
+		// Vérifier si le joueur est dans le champ de vision après le mouvement de l'ennemi
+		if (EnemyPawn->CheckAndKillPlayer())
+		{
+			// Le joueur a été tué, on termine l'action mais on ne continue pas le jeu
+			if (UWorld* World = GetWorld())
+			{
+				if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
+				{
+					TurnManager->RegisterActionCompleted();
+				}
+			}
+			return;
+		}
+		
+		// Pas de kill, rotation normale
 		EnemyPawn->ExecuteEnemyRotation();
 		return;	
 	}
 	
+	// Pour le joueur, vérifier si un ennemi peut le voir
+	if (Cast<AHGOPlayerPawn>(GetOwner()))
+	{
+		// Parcourir tous les ennemis pour vérifier si l'un d'eux voit le joueur
+		for (TActorIterator<AHGOEnemyPawn> EnemyItr(GetWorld()); EnemyItr; ++EnemyItr)
+		{
+			AHGOEnemyPawn* Enemy = *EnemyItr;
+			if (Enemy && Enemy->CheckAndKillPlayer())
+			{
+				// Le joueur a été tué par cet ennemi
+				if (UWorld* World = GetWorld())
+				{
+					if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
+					{
+						TurnManager->RegisterActionCompleted();
+					}
+				}
+				return;
+			}
+		}
+	}
+	
+	// Aucun kill, compléter l'action normalement
 	if (UWorld* World = GetWorld())
 	{
 		if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
@@ -385,9 +495,8 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 			TurnManager->RegisterActionCompleted();
 		}
 	}
-
-	
 }
+
 
 // Called when the game starts
 void UHGOGraphMovementComponent::BeginPlay()
