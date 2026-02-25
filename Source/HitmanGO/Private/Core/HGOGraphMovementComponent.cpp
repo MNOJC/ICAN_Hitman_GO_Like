@@ -136,6 +136,7 @@ bool UHGOGraphMovementComponent::TryMoveToNodeID(int32 TargetNodeID)
 
 void UHGOGraphMovementComponent::SetCurrentNode(UHGONodeGraphComponent* NewNode)
 {
+	
 	if (NewNode)
 	{
 		CurrentNode = NewNode;
@@ -362,23 +363,27 @@ void UHGOGraphMovementComponent::UpdateMovement(float DeltaTime)
 
 	if (MovementProgress >= 1.0f)
 	{
-		// Movement complete
+		// Movement complete - mettre le pawn à la position finale
 		GetOwner()->SetActorLocation(TargetNode->GetComponentLocation());
-		CurrentNode = TargetNode;
-		TargetNode = nullptr;
 		bIsMoving = false;
 		MovementProgress = 0.0f;
 
-		UE_LOG(LogTemp, Log, TEXT("[Movement] Arrived at node %d"), CurrentNode->NodeData.NodeID);
+		UE_LOG(LogTemp, Log, TEXT("[Movement] Arrived at node %d"), TargetNode->NodeData.NodeID);
 
 		// Check for PlayerPortal BEFORE notifying turn system
-		if (CurrentNode->NodeData.NodeType == ENodeType::PlayerPortal)
+		if (TargetNode->NodeData.NodeType == ENodeType::PlayerPortal)
 		{
 			UE_LOG(LogTemp, Log, TEXT("[Movement] Player reached PlayerPortal node!"));
+			
+			// Mettre à jour CurrentNode AVANT le switch de monde
+			CurrentNode = TargetNode;
+			TargetNode = nullptr;
+			
 			SwitchWorldGraph();
 		} 
 		else
 		{
+			// Notifier la fin du mouvement (CurrentNode sera mis à jour dans cette fonction)
 			NotifyMovementCompleted();
 		}
 		
@@ -444,12 +449,20 @@ void UHGOGraphMovementComponent::NotifyMovementStarted()
 
 void UHGOGraphMovementComponent::NotifyMovementCompleted()
 {
+	// IMPORTANT: Toujours mettre à jour CurrentNode après le mouvement
+	if (TargetNode)
+	{
+		CurrentNode = TargetNode;
+		TargetNode = nullptr;
+	}
+
+	// CAS 1: C'est un ENNEMI qui vient de bouger
 	if(AHGOEnemyPawn* EnemyPawn = Cast<AHGOEnemyPawn>(GetOwner()))
 	{
 		// Vérifier si le joueur est dans le champ de vision après le mouvement de l'ennemi
 		if (EnemyPawn->CheckAndKillPlayer())
 		{
-			// Le joueur a été tué, on termine l'action mais on ne continue pas le jeu
+			// Le joueur a été tué, terminer le tour
 			if (UWorld* World = GetWorld())
 			{
 				if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
@@ -465,16 +478,35 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 		return;	
 	}
 	
-	// Pour le joueur, vérifier si un ennemi peut le voir
-	if (Cast<AHGOPlayerPawn>(GetOwner()))
+	// CAS 2: C'est le JOUEUR qui vient de bouger
+	if (AHGOPlayerPawn* Player = Cast<AHGOPlayerPawn>(GetOwner()))
 	{
-		// Parcourir tous les ennemis pour vérifier si l'un d'eux voit le joueur
+		// PRIORITÉ 1: Vérifier si le joueur a atteint le Goal
+		if (CurrentNode && CurrentNode->NodeData.NodeType == ENodeType::Goal)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Movement] Player reached GOAL! Level complete!"));
+			
+			// Compléter le niveau
+			Player->CompleteLevel();
+			
+			// Terminer le tour
+			if (UWorld* World = GetWorld())
+			{
+				if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
+				{
+					TurnManager->RegisterActionCompleted();
+				}
+			}
+			return;
+		}
+		
+		// PRIORITÉ 2: Vérifier si un ennemi peut voir le joueur
 		for (TActorIterator<AHGOEnemyPawn> EnemyItr(GetWorld()); EnemyItr; ++EnemyItr)
 		{
 			AHGOEnemyPawn* Enemy = *EnemyItr;
 			if (Enemy && Enemy->CheckAndKillPlayer())
 			{
-				// Le joueur a été tué par cet ennemi
+				// Le joueur a été tué par cet ennemi, terminer le tour
 				if (UWorld* World = GetWorld())
 				{
 					if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
@@ -487,7 +519,7 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 		}
 	}
 	
-	// Aucun kill, compléter l'action normalement
+	// Aucun événement spécial, compléter l'action normalement
 	if (UWorld* World = GetWorld())
 	{
 		if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
@@ -496,6 +528,7 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 		}
 	}
 }
+
 
 
 // Called when the game starts

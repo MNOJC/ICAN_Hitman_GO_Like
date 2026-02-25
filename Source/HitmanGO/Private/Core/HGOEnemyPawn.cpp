@@ -519,10 +519,9 @@ bool AHGOEnemyPawn::CheckAndKillPlayer()
 	if (GraphMovementComponent->IsNodeInFrontDirection(PlayerNode))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Player detected in vision! Killing player..."));
-
-		GraphMovementComponent->TryMoveToNodeID(PlayerNode->NodeData.NodeID); // Se déplacer vers le joueur pour le "toucher"
-		// Tuer le joueur
-		//Player->KillPlayer();
+		
+		// Tuer le joueur directement
+		Player->KillPlayer();
 		
 		return true;
 	}

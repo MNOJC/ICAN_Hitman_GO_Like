@@ -122,3 +122,12 @@ void AHGOPlayerPawn::KillPlayer()
 	// TODO: Ajouter des effets visuels, animations, son, etc.
 }
 
+void AHGOPlayerPawn::CompleteLevel()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[PlayerPawn] Level completed!"));
+	
+	// Broadcast le delegate pour notifier les blueprints
+	OnLevelComplete.Broadcast();
+	
+	// TODO: Ajouter des effets visuels, animations, son, transition vers le prochain niveau
+}

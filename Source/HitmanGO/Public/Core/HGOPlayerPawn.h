@@ -15,6 +15,9 @@ struct FKey;
 // Delegate pour la mort du joueur
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayerDeath);
 
+// Delegate pour la complétion du niveau
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLevelComplete);
+
 UCLASS()
 class HITMANGO_API AHGOPlayerPawn : public APawn
 {
@@ -27,6 +30,10 @@ public:
 	// Delegate appelé quand le joueur meurt
 	UPROPERTY(BlueprintAssignable, Category = "Player|Events")
 	FOnPlayerDeath OnPlayerDeath;
+
+	// Delegate appelé quand le joueur atteint le goal
+	UPROPERTY(BlueprintAssignable, Category = "Player|Events")
+	FOnLevelComplete OnLevelComplete;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components")
 	UHGOGraphMovementComponent* GraphMovementComponent;
@@ -62,5 +69,9 @@ public:
 	// Fonction pour tuer le joueur
 	UFUNCTION(BlueprintCallable, Category = "Player")
 	void KillPlayer();
+
+	// Fonction pour compléter le niveau
+	UFUNCTION(BlueprintCallable, Category = "Player")
+	void CompleteLevel();
 
 };
