@@ -1,0 +1,11 @@
+Model Information:
+* title:	Bonsai Tree Scan
+* source:	https://sketchfab.com/3d-models/bonsai-tree-scan-cad29bc99e85403690e7cee38df65d6a
+* author:	EvanLegrand (https://sketchfab.com/evan4129)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Bonsai Tree Scan" (https://sketchfab.com/3d-models/bonsai-tree-scan-cad29bc99e85403690e7cee38df65d6a) by EvanLegrand (https://sketchfab.com/evan4129) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
