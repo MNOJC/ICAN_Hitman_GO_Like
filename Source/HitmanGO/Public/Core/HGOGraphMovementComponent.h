@@ -49,6 +49,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	bool IsNodeInFrontDirection(UHGONodeGraphComponent* TargetedNode) const;
 
+	// Check if a target node is aligned in a straight direction (any distance, must be connected)
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	bool IsNodeInAlignedDirection(UHGONodeGraphComponent* TargetedNode, ENodeDirection& OutDirection) const;
+
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;

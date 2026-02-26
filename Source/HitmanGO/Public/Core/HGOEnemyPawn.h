@@ -80,6 +80,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Enemy")
 	bool CheckAndKillPlayer();
 
+	// Push enemy in a direction (called by player ability)
+	UFUNCTION(BlueprintCallable, Category = "Enemy")
+	void PushEnemy(ENodeDirection Direction);
+
+	void StartReturnToPatrol();
+	bool IsNodeInPatrol(int32 NodeID) const;
+
+	// Push state (accessed by GraphMovementComponent)
+	bool bBeingPushed = false;
+	bool bReturningToPatrol = false;
+	TArray<int32> PushPathNodeIDs;
+
 private:
 	// Path navigation
 	int32 CurrentPathIndex = 0;
@@ -95,6 +107,9 @@ private:
 	bool bIsRotating = false;
 	FRotator NextRotation;
 
+	// Push state (private)
+	int32 LastPatrolNodeID = -1;   // Dernière node de la patrol avant le push
+
 	void InitEnemyPosition();
 	void UpdateEnemyRotation(float DeltaTime);
 	
@@ -106,4 +121,7 @@ private:
 	void HandleEnemyPortal();
 	void BuildPortal();
 	void CrossPortal();
+	
+	
+	
 };

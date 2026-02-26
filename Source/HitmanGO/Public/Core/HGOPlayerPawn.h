@@ -74,4 +74,31 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Player")
 	void CompleteLevel();
 
+	// Trigger l'ability du joueur (push enemy)
+	UFUNCTION(BlueprintCallable, Category = "Player|Ability")
+	void TriggerPlayerAbility();
+
+	// Native events pour les blueprints
+	UFUNCTION(BlueprintNativeEvent, Category = "Player|Ability")
+	void OnAbilityBecameAvailable();
+
+	UFUNCTION(BlueprintNativeEvent, Category = "Player|Ability")
+	void OnAbilityBecameUnavailable();
+
+	void UpdateAbilityCooldown();
+	void CheckAbilityAvailability();
+
+protected:
+	// Ability cooldown
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Ability")
+	int32 AbilityCooldownTurns = 3;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Player|Ability")
+	int32 CurrentAbilityCooldown = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Player|Ability")
+	bool bAbilityAvailable = true;
+
+	
+
 };
