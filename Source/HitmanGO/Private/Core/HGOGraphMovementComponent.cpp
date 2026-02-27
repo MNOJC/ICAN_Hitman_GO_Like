@@ -423,6 +423,8 @@ void UHGOGraphMovementComponent::SwitchWorldGraph()
 	UE_LOG(LogTemp, Log, TEXT("Switched to node ID: %d (IsUpsideDown: %s)"), 
 		LinkedNode->NodeData.NodeID,
 		LinkedNode->NodeData.bIsUpsideDownNode ? TEXT("Yes") : TEXT("No"));
+
+	NotifyMovementCompleted();
 }
 
 void UHGOGraphMovementComponent::UpdateMovement(float DeltaTime)
@@ -525,6 +527,28 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 	{
 		CurrentNode = TargetNode;
 		TargetNode = nullptr;
+
+		if (AHGOPlayerPawn* Player = Cast<AHGOPlayerPawn>(GetOwner()))
+		{
+			for (TActorIterator<AHGOEnemyPawn> EnemyItr(GetWorld()); EnemyItr; ++EnemyItr)
+			{
+				AHGOEnemyPawn* Enemy = *EnemyItr;
+
+				if (Enemy)
+				{
+					if (Enemy->GraphMovementComponent->CurrentNode)
+					{
+						if(CurrentNode->NodeData.NodeID == Enemy->GraphMovementComponent->CurrentNode->NodeData.NodeID)
+						{
+							Player->KillPlayer();
+							return; // Player is dead, no need to check further
+						}
+					}
+				
+				}
+			
+			}
+		}
 	}
 
 	// CAS 1: C'est un ENNEMI qui vient de bouger
@@ -577,20 +601,6 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 				// On ne fait rien, le joueur peut continuer à jouer
 				return;
 			}
-		}
-		
-		// SOUS-CAS 1B: Vérifier si le joueur est dans le champ de vision
-		if (EnemyPawn->CheckAndKillPlayer())
-		{
-			// Le joueur a été tué, terminer le tour
-			if (UWorld* World = GetWorld())
-			{
-				if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
-				{
-					TurnManager->RegisterActionCompleted();
-				}
-			}
-			return;
 		}
 		
 		// Pas de kill, rotation normale

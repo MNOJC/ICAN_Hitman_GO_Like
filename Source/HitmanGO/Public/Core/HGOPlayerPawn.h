@@ -18,6 +18,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayerDeath);
 // Delegate pour la complétion du niveau
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLevelComplete);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAbilityCooldownUpdated, int32, NewCooldown);
+
 UCLASS()
 class HITMANGO_API AHGOPlayerPawn : public APawn
 {
@@ -34,6 +36,9 @@ public:
 	// Delegate appelé quand le joueur atteint le goal
 	UPROPERTY(BlueprintAssignable, Category = "Player|Events")
 	FOnLevelComplete OnLevelComplete;
+
+	UPROPERTY(BlueprintAssignable, Category = "Player|Events")
+	FOnAbilityCooldownUpdated OnAbilityCooldownUpdated;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components")
 	UHGOGraphMovementComponent* GraphMovementComponent;
@@ -84,6 +89,7 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, Category = "Player|Ability")
 	void OnAbilityBecameUnavailable();
+
 
 	void UpdateAbilityCooldown();
 	void CheckAbilityAvailability();

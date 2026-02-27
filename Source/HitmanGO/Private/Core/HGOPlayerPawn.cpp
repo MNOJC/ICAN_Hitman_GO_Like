@@ -260,7 +260,9 @@ void AHGOPlayerPawn::UpdateAbilityCooldown()
 		);
 
 		CheckAbilityAvailability();
+		OnAbilityCooldownUpdated.Broadcast(CurrentAbilityCooldown);
 	}
+	
 }
 
 void AHGOPlayerPawn::CheckAbilityAvailability()
