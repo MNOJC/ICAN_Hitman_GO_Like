@@ -9,7 +9,7 @@
 #include "Core/HGOGameMode.h"
 #include "HGOGraphMovementComponent.generated.h"
 
-
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMovementCompleted, int32, NewNode);
 
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
@@ -29,6 +29,9 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Category = "State")
 	bool bInUpsideDownWorld = false;
+
+	UPROPERTY(BlueprintAssignable, Category = "Movement")
+	FOnMovementCompleted OnMovementCompleted;
 
 	
 	UFUNCTION(BlueprintCallable, Category = "Movement")

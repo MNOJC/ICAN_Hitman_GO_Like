@@ -528,6 +528,8 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 		CurrentNode = TargetNode;
 		TargetNode = nullptr;
 
+		OnMovementCompleted.Broadcast(CurrentNode->NodeData.NodeID);
+
 		if (AHGOPlayerPawn* Player = Cast<AHGOPlayerPawn>(GetOwner()))
 		{
 			for (TActorIterator<AHGOEnemyPawn> EnemyItr(GetWorld()); EnemyItr; ++EnemyItr)
