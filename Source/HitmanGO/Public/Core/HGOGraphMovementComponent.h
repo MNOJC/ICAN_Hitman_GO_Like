@@ -9,7 +9,7 @@
 #include "Core/HGOGameMode.h"
 #include "HGOGraphMovementComponent.generated.h"
 
-
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMovementCompleted, int32, NewNode);
 
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
@@ -30,6 +30,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "State")
 	bool bInUpsideDownWorld = false;
 
+	UPROPERTY(BlueprintAssignable, Category = "Movement")
+	FOnMovementCompleted OnMovementCompleted;
+
 	
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	bool TryMoveInDirection(ENodeDirection Direction);
@@ -48,6 +51,10 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	bool IsNodeInFrontDirection(UHGONodeGraphComponent* TargetedNode) const;
+
+	// Check if a target node is aligned in a straight direction (any distance, must be connected)
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	bool IsNodeInAlignedDirection(UHGONodeGraphComponent* TargetedNode, ENodeDirection& OutDirection) const;
 
 protected:
 	// Called when the game starts

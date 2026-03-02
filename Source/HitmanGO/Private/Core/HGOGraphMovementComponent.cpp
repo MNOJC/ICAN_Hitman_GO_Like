@@ -217,6 +217,77 @@ bool UHGOGraphMovementComponent::IsNodeInFrontDirection(UHGONodeGraphComponent* 
 	return false; // Pas de connexion directe
 }
 
+bool UHGOGraphMovementComponent::IsNodeInAlignedDirection(UHGONodeGraphComponent* TargetedNode, ENodeDirection& OutDirection) const
+{
+	if (!CurrentNode || !TargetedNode)
+	{
+		OutDirection = ENodeDirection::None;
+		return false;
+	}
+
+	// Trouver le générateur pour parcourir le graphe
+	AHGOTacticalLevelGenerator* Generator = nullptr;
+	for (TActorIterator<AHGOTacticalLevelGenerator> GeneratorItr(GetWorld()); GeneratorItr; ++GeneratorItr)
+	{
+		Generator = *GeneratorItr;
+		break;
+	}
+
+	if (!Generator)
+	{
+		OutDirection = ENodeDirection::None;
+		return false;
+	}
+
+	// Tester chaque direction cardinale
+	TArray<ENodeDirection> AllDirections = {
+		ENodeDirection::North,
+		ENodeDirection::South,
+		ENodeDirection::East,
+		ENodeDirection::West
+	};
+
+	for (ENodeDirection Direction : AllDirections)
+	{
+		// Parcourir dans cette direction jusqu'à trouver la target ou un dead-end
+		UHGONodeGraphComponent* CurrentCheck = CurrentNode;
+		bool bFoundPath = false;
+
+		// Parcourir jusqu'à 20 nodes max pour éviter les boucles infinies
+		for (int32 i = 0; i < 20; ++i)
+		{
+			UHGONodeGraphComponent* NextNode = CurrentCheck->GetNodeInDirection(Direction);
+			
+			if (!NextNode)
+			{
+				// Dead-end, pas de connexion dans cette direction
+				break;
+			}
+
+			if (NextNode->NodeData.NodeID == TargetedNode->NodeData.NodeID)
+			{
+				// Trouvé la cible !
+				bFoundPath = true;
+				break;
+			}
+
+			// Continuer dans la même direction
+			CurrentCheck = NextNode;
+		}
+
+		if (bFoundPath)
+		{
+			OutDirection = Direction;
+			return true;
+		}
+	}
+
+	// Aucun alignement trouvé
+	OutDirection = ENodeDirection::None;
+	return false;
+}
+
+
 
 void UHGOGraphMovementComponent::SwitchWorldGraph()
 {
@@ -352,6 +423,8 @@ void UHGOGraphMovementComponent::SwitchWorldGraph()
 	UE_LOG(LogTemp, Log, TEXT("Switched to node ID: %d (IsUpsideDown: %s)"), 
 		LinkedNode->NodeData.NodeID,
 		LinkedNode->NodeData.bIsUpsideDownNode ? TEXT("Yes") : TEXT("No"));
+
+	NotifyMovementCompleted();
 }
 
 void UHGOGraphMovementComponent::UpdateMovement(float DeltaTime)
@@ -454,23 +527,82 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 	{
 		CurrentNode = TargetNode;
 		TargetNode = nullptr;
+
+		OnMovementCompleted.Broadcast(CurrentNode->NodeData.NodeID);
+
+		if (AHGOPlayerPawn* Player = Cast<AHGOPlayerPawn>(GetOwner()))
+		{
+			for (TActorIterator<AHGOEnemyPawn> EnemyItr(GetWorld()); EnemyItr; ++EnemyItr)
+			{
+				AHGOEnemyPawn* Enemy = *EnemyItr;
+
+				if (Enemy)
+				{
+					if (Enemy->GraphMovementComponent->CurrentNode)
+					{
+						if(CurrentNode->NodeData.NodeID == Enemy->GraphMovementComponent->CurrentNode->NodeData.NodeID)
+						{
+							Player->KillPlayer();
+							return; // Player is dead, no need to check further
+						}
+					}
+				
+				}
+			
+			}
+		}
 	}
 
 	// CAS 1: C'est un ENNEMI qui vient de bouger
 	if(AHGOEnemyPawn* EnemyPawn = Cast<AHGOEnemyPawn>(GetOwner()))
 	{
-		// Vérifier si le joueur est dans le champ de vision après le mouvement de l'ennemi
-		if (EnemyPawn->CheckAndKillPlayer())
+		// SOUS-CAS 1A: Ennemi en train d'être poussé
+		if (EnemyPawn->bBeingPushed)
 		{
-			// Le joueur a été tué, terminer le tour
-			if (UWorld* World = GetWorld())
+			// Trouver l'index de la node actuelle dans le path de push
+			int32 CurrentIndexInPush = EnemyPawn->PushPathNodeIDs.Find(CurrentNode->NodeData.NodeID);
+			
+			if (CurrentIndexInPush != INDEX_NONE && CurrentIndexInPush < EnemyPawn->PushPathNodeIDs.Num() - 1)
 			{
-				if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
+				// Encore des nodes à parcourir
+				int32 NextNodeID = EnemyPawn->PushPathNodeIDs[CurrentIndexInPush + 1];
+				
+				GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Magenta,
+					FString::Printf(TEXT("[Push] Continuing push to node %d (%d/%d)"), 
+						NextNodeID, CurrentIndexInPush + 1, EnemyPawn->PushPathNodeIDs.Num() - 1));
+				
+				if (TryMoveToNodeID(NextNodeID))
 				{
-					TurnManager->RegisterActionCompleted();
+					// Le mouvement continue, on ne termine pas le tour
+					return;
 				}
 			}
-			return;
+			else
+			{
+				// Push terminé !
+				GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
+					TEXT("[Push] ★ PUSH COMPLETE ★"));
+				
+				EnemyPawn->bBeingPushed = false;
+				
+				// Vérifier si on est sur la patrol
+				if (!EnemyPawn->IsNodeInPatrol(CurrentNode->NodeData.NodeID))
+				{
+					GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow,
+						TEXT("[Push] Enemy out of patrol - will return next turn"));
+					
+					EnemyPawn->StartReturnToPatrol();
+				}
+				else
+				{
+					GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
+						TEXT("[Push] Enemy still on patrol - continuing normally"));
+				}
+				
+				// Push terminé, on ne change pas de tour (c'est toujours au joueur)
+				// On ne fait rien, le joueur peut continuer à jouer
+				return;
+			}
 		}
 		
 		// Pas de kill, rotation normale

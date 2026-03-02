@@ -97,8 +97,73 @@ void AHGOEnemyPawn::ExecuteEnemyMove()
 		UE_LOG(LogTemp, Error, TEXT("[EnemyPawn] No current node!"));
 		return;
 	}
-	
 
+	// CAS 1: L'ennemi est en train d'être poussé - NE PAS BOUGER
+	if (bBeingPushed)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow,
+			TEXT("[Enemy] Being pushed - skipping normal move"));
+		
+		// Terminer le tour sans bouger
+		if (UWorld* World = GetWorld())
+		{
+			if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
+			{
+				TurnManager->RegisterActionStarted();
+				TurnManager->RegisterActionCompleted();
+			}
+		}
+		return;
+	}
+
+	// CAS 2: L'ennemi retourne à sa patrol
+	if (bReturningToPatrol)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Cyan,
+			TEXT("[Enemy] Returning to patrol"));
+
+		// Trouver la node suivante dans le chemin de retour
+		if (PushPathNodeIDs.Num() > 1)
+		{
+			// Retirer la node actuelle
+			PushPathNodeIDs.RemoveAt(PushPathNodeIDs.Num() - 1);
+			
+			// Obtenir la prochaine node dans le chemin inversé
+			int32 NextNodeID = PushPathNodeIDs.Last();
+			
+			GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
+				FString::Printf(TEXT("[Enemy] Moving back to node %d (%d nodes remaining)"), 
+					NextNodeID, PushPathNodeIDs.Num() - 1));
+
+			if (GraphMovementComponent->TryMoveToNodeID(NextNodeID))
+			{
+				// Vérifier si on est revenu sur la patrol
+				if (IsNodeInPatrol(NextNodeID))
+				{
+					GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
+						TEXT("[Enemy] ★ BACK ON PATROL ★"));
+					
+					bReturningToPatrol = false;
+					PushPathNodeIDs.Empty();
+					
+					// Trouver l'index dans la patrol
+					for (int32 i = 0; i < MovementPathNodeIDs.Num(); ++i)
+					{
+						if (MovementPathNodeIDs[i] == NextNodeID)
+						{
+							CurrentPathIndex = i;
+							GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
+								FString::Printf(TEXT("[Enemy] Resuming patrol at index %d"), i));
+							break;
+						}
+					}
+				}
+			}
+			return;
+		}
+	}
+
+	// CAS 3: Mouvement normal de patrol
 	UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Current node ID: %d | Type: %s"), 
 		GraphMovementComponent->GetCurrentNode()->NodeData.NodeID, 
 		*UEnum::GetValueAsString(GraphMovementComponent->GetCurrentNode()->NodeData.NodeType));
@@ -106,7 +171,6 @@ void AHGOEnemyPawn::ExecuteEnemyMove()
 	// Vérifier si on est sur un portail ennemi
 	if (GraphMovementComponent->GetCurrentNode()->NodeData.NodeType == ENodeType::EnemyPortal)
 	{
-		
 		HandleEnemyPortal();
 		return;
 	}
@@ -528,3 +592,104 @@ bool AHGOEnemyPawn::CheckAndKillPlayer()
 
 	return false;
 }
+
+void AHGOEnemyPawn::PushEnemy(ENodeDirection Direction)
+{
+	GEngine->AddOnScreenDebugMessage(
+		-1, 3.f, FColor::Magenta,
+		FString::Printf(TEXT("[Push] PushEnemy called with direction: %s"), 
+			*UEnum::GetValueAsString(Direction))
+	);
+
+	if (!GraphMovementComponent || !GraphMovementComponent->GetCurrentNode())
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red,
+			TEXT("[Push] FAILED - No current node"));
+		return;
+	}
+
+	// Trouver le générateur pour parcourir le graphe
+	AHGOTacticalLevelGenerator* Generator = nullptr;
+	for (TActorIterator<AHGOTacticalLevelGenerator> GeneratorItr(GetWorld()); GeneratorItr; ++GeneratorItr)
+	{
+		Generator = *GeneratorItr;
+		break;
+	}
+
+	if (!Generator)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red,
+			TEXT("[Push] FAILED - No level generator"));
+		return;
+	}
+
+	// Sauvegarder la node actuelle comme point de départ
+	UHGONodeGraphComponent* StartNode = GraphMovementComponent->GetCurrentNode();
+	LastPatrolNodeID = StartNode->NodeData.NodeID;
+	
+	// Parcourir dans la direction jusqu'à trouver la dernière node connectée
+	UHGONodeGraphComponent* CurrentCheck = StartNode;
+	UHGONodeGraphComponent* LastValidNode = StartNode;
+	PushPathNodeIDs.Empty();
+	PushPathNodeIDs.Add(StartNode->NodeData.NodeID);
+
+	// Parcourir jusqu'à 20 nodes max
+	for (int32 i = 0; i < 20; ++i)
+	{
+		UHGONodeGraphComponent* NextNode = CurrentCheck->GetNodeInDirection(Direction);
+		
+		if (!NextNode)
+		{
+			// Dead-end trouvé
+			GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow,
+				FString::Printf(TEXT("[Push] Dead-end after %d nodes"), PushPathNodeIDs.Num() - 1));
+			break;
+		}
+
+		// Node connectée trouvée
+		LastValidNode = NextNode;
+		PushPathNodeIDs.Add(NextNode->NodeData.NodeID);
+		CurrentCheck = NextNode;
+		
+		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan,
+			FString::Printf(TEXT("[Push] Found connected node: %d"), NextNode->NodeData.NodeID));
+	}
+
+	// Vérifier si on peut pousser (au moins 1 node de déplacement)
+	if (PushPathNodeIDs.Num() <= 1)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange,
+			TEXT("[Push] No node to push to - ability consumed but enemy doesn't move"));
+		return;
+	}
+
+	// Démarrer le push
+	bBeingPushed = true;
+	
+	GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
+		FString::Printf(TEXT("[Push] Starting push - will move %d nodes"), PushPathNodeIDs.Num() - 1));
+
+	// Démarrer le premier mouvement
+	int32 NextNodeID = PushPathNodeIDs[1]; // Première node après la position actuelle
+	
+	if (GraphMovementComponent->TryMoveToNodeID(NextNodeID))
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
+			FString::Printf(TEXT("[Push] Started moving to node %d"), NextNodeID));
+	}
+}
+
+bool AHGOEnemyPawn::IsNodeInPatrol(int32 NodeID) const
+{
+	return MovementPathNodeIDs.Contains(NodeID);
+}
+
+void AHGOEnemyPawn::StartReturnToPatrol()
+{
+	bReturningToPatrol = true;
+	
+	GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow,
+		FString::Printf(TEXT("[Return] Starting return to patrol (%d nodes to backtrack)"), 
+			PushPathNodeIDs.Num() - 1));
+}
+

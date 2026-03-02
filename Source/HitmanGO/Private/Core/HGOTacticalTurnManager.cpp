@@ -2,6 +2,7 @@
 
 #include "Core/HGOTacticalTurnManager.h"
 #include "Core/HGOEnemyPawn.h"
+#include "Core/HGOPlayerPawn.h"
 #include "EngineUtils.h"
 
 void UHGOTacticalTurnManager::Initialize(FSubsystemCollectionBase& Collection)
@@ -159,12 +160,40 @@ void UHGOTacticalTurnManager::TickEnemyTurn(float DeltaTime)
 void UHGOTacticalTurnManager::StartPlayerTurn()
 {
 	UE_LOG(LogTemp, Warning, TEXT("[TurnManager] === PLAYER TURN START ==="));
+	
+	// Mettre à jour le cooldown de l'ability du joueur
+	if (UWorld* World = GetWorld())
+	{
+		for (TActorIterator<AHGOPlayerPawn> PlayerItr(World); PlayerItr; ++PlayerItr)
+		{
+			AHGOPlayerPawn* Player = *PlayerItr;
+			if (Player)
+			{
+				Player->UpdateAbilityCooldown();
+			}
+		}
+	}
+	
 	ChangePhase(ETurnPhase::WaitingForInput);
 }
 
 void UHGOTacticalTurnManager::StartEnemyTurn()
 {
 	UE_LOG(LogTemp, Warning, TEXT("[TurnManager] === ENEMY TURN START ==="));
+	
+	// Mettre à jour le cooldown de l'ability du joueur également au tour ennemi
+	if (UWorld* World = GetWorld())
+	{
+		for (TActorIterator<AHGOPlayerPawn> PlayerItr(World); PlayerItr; ++PlayerItr)
+		{
+			AHGOPlayerPawn* Player = *PlayerItr;
+			if (Player)
+			{
+				Player->UpdateAbilityCooldown();
+			}
+		}
+	}
+	
 	EnemyTurnTimer = 0.f;
 	ChangePhase(ETurnPhase::WaitingForInput);
 	
