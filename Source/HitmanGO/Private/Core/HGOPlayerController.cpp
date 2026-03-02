@@ -133,7 +133,7 @@ void AHGOPlayerController::PawnGrabbed(const FInputActionValue& Value)
 {
 	if (bPawnSelected)
 	{
-		GetPawn()->SetActorLocation(StartPawnLocationBeforeGrab + FVector(0, 0, 15.0f));
+		GetPawn()->SetActorLocation(StartPawnLocationBeforeGrab + FVector(0, 0, 2.0f));
         
 		FRotator TiltRotation = FRotator::ZeroRotator;
         

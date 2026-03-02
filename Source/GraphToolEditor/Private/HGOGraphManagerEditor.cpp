@@ -63,7 +63,7 @@ AHGONodeEditor* AHGOGraphManagerEditor::CreateNewNode(FVector SpawnLocation)
                        break;
                     }                        
                 }
-                SpawnLocation = CameraLocation + CameraRotation.Vector() * 500.0f;
+                SpawnLocation = CameraLocation + CameraRotation.Vector() * 10.0f;
                 SpawnLocation = SpawnLocation.GridSnap(GridSpacing);
                 SpawnLocation = FVector(SpawnLocation.X, SpawnLocation.Y, ZLocation);
                 
