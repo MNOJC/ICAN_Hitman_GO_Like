@@ -56,15 +56,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components")
 	UBoxComponent* CollisionSwipeComponent;
 
-	
-
 	UFUNCTION()
 	void OnPawnClicked(UPrimitiveComponent* TouchedComponent, FKey ButtonPressed);
 
 	UFUNCTION()
 	void OnPawnReleased(UPrimitiveComponent* TouchedComponent, FKey ButtonReleased);
 	
-
+	bool bInputBlocked = false;
+	
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -89,6 +88,15 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, Category = "Player|Ability")
 	void OnAbilityBecameUnavailable();
+
+	UFUNCTION(BlueprintCallable, Category = "Player")
+	void BlockInput();
+    
+	UFUNCTION(BlueprintCallable, Category = "Player")
+	void UnblockInput();
+    
+	UFUNCTION(BlueprintCallable, Category = "Player")
+	bool IsInputBlocked() const { return bInputBlocked; }
 
 
 	void UpdateAbilityCooldown();

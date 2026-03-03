@@ -56,6 +56,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	bool IsNodeInAlignedDirection(UHGONodeGraphComponent* TargetedNode, ENodeDirection& OutDirection) const;
 
+	UFUNCTION()
+	void OnWorldSwitchAnimationComplete();
+
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
@@ -63,6 +66,7 @@ protected:
 	bool bIsMoving;
 	UHGONodeGraphComponent* TargetNode;
 	float MovementProgress;
+	UHGONodeGraphComponent* CachedLinkedNode = nullptr;
 	
 	void UpdateMovement(float DeltaTime);
 	void UpdateGrabFeedback(float DeltaTime);

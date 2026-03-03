@@ -291,8 +291,10 @@ bool UHGOGraphMovementComponent::IsNodeInAlignedDirection(UHGONodeGraphComponent
 
 void UHGOGraphMovementComponent::SwitchWorldGraph()
 {
+	UE_LOG(LogTemp, Log, TEXT("[WorldSwitch] Player triggered world switch"));
+
+	// Trouver le générateur
 	AHGOTacticalLevelGenerator* Generator = nullptr;
-    
 	for (TActorIterator<AHGOTacticalLevelGenerator> GeneratorItr(GetWorld()); GeneratorItr; ++GeneratorItr)
 	{
 		Generator = *GeneratorItr;
@@ -307,7 +309,6 @@ void UHGOGraphMovementComponent::SwitchWorldGraph()
 	if (LinkedNodeID < 0)
 		return;
 	
-	
 	UHGONodeGraphComponent* LinkedNode = nullptr;
 
 	for (UHGONodeGraphComponent* NodeComp : Generator->NodeGraphs)
@@ -316,13 +317,11 @@ void UHGOGraphMovementComponent::SwitchWorldGraph()
     	
 		if (NodeComp->NodeData.LinkedUpsideDownNodeID == LinkedNodeID)
 		{
-			// Si on est dans le monde normal, chercher le node upside-down
 			if (!bInUpsideDownWorld && NodeComp->NodeData.bIsUpsideDownNode)
 			{
 				LinkedNode = NodeComp;
 				break;
 			}
-			// Si on est dans le monde upside-down, chercher le node normal
 			else if (bInUpsideDownWorld && !NodeComp->NodeData.bIsUpsideDownNode)
 			{
 				LinkedNode = NodeComp;
@@ -337,7 +336,60 @@ void UHGOGraphMovementComponent::SwitchWorldGraph()
 		return;
 	}
 
-	// Préparer les listes de nodes/edges à afficher/cacher
+	// NOUVELLE LOGIQUE: Démarrer la séquence d'animation
+	// Au lieu de faire le switch directement, on bind aux delegates
+	
+	// Bind au delegate de fin de séquence
+	if (!Generator->OnSwitchWorldAnimCompleted.IsAlreadyBound(this, &UHGOGraphMovementComponent::OnWorldSwitchAnimationComplete))
+	{
+		Generator->OnSwitchWorldAnimCompleted.AddDynamic(this, &UHGOGraphMovementComponent::OnWorldSwitchAnimationComplete);
+	}
+
+	// Sauvegarder la node cible pour après l'animation
+	CachedLinkedNode = LinkedNode;
+
+	// Démarrer la séquence d'animation
+	Generator->StartWorldSwitchSequence();
+	
+
+	// Le reste (broadcast OnSwitchWorldGraph, téléportation) se fera dans OnWorldSwitchAnimationComplete
+
+	if (bInUpsideDownWorld)
+	{
+		UE_LOG(LogTemp, Log, TEXT("Switching to NORMAL world"));
+		GetWorld()->GetAuthGameMode<AHGOGameMode>()->OnSwitchWorldGraph.Broadcast(false);
+		bInUpsideDownWorld = false;
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("Switching to UPSIDE-DOWN world"));
+		GetWorld()->GetAuthGameMode<AHGOGameMode>()->OnSwitchWorldGraph.Broadcast(true);
+		bInUpsideDownWorld = true;
+	}
+}
+
+void UHGOGraphMovementComponent::OnWorldSwitchAnimationComplete()
+{
+	UE_LOG(LogTemp, Log, TEXT("[WorldSwitch] Animation complete, performing world switch"));
+
+	if (!CachedLinkedNode)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[WorldSwitch] No cached linked node!"));
+		return;
+	}
+
+	// Trouver le générateur
+	AHGOTacticalLevelGenerator* Generator = nullptr;
+	for (TActorIterator<AHGOTacticalLevelGenerator> GeneratorItr(GetWorld()); GeneratorItr; ++GeneratorItr)
+	{
+		Generator = *GeneratorItr;
+		break;
+	}
+
+	if (!Generator)
+		return;
+
+	// Préparer les listes de nodes/edges
 	TArray<UHGONodeGraphComponent*> NormalNodes;
 	TArray<UHGONodeGraphComponent*> UpsideDownNodes;
 	TArray<UHGOEdgeGraphComponent*> NormalEdges;
@@ -363,7 +415,6 @@ void UHGOGraphMovementComponent::SwitchWorldGraph()
 	{
 		if (!EdgeComp) continue;
 
-		// Un edge est upside-down si ses deux nodes sont upside-down
 		bool bSourceIsUpsideDown = false;
 		bool bTargetIsUpsideDown = false;
 
@@ -381,7 +432,6 @@ void UHGOGraphMovementComponent::SwitchWorldGraph()
 			}
 		}
 
-		// L'edge appartient au monde upside-down si au moins un node l'est
 		if (bSourceIsUpsideDown || bTargetIsUpsideDown)
 		{
 			UpsideDownEdges.Add(EdgeComp);
@@ -392,38 +442,16 @@ void UHGOGraphMovementComponent::SwitchWorldGraph()
 		}
 	}
 
-	// Switch le monde
-	if (bInUpsideDownWorld)
-	{
-		// Retour au monde normal
-		UE_LOG(LogTemp, Log, TEXT("Switching to NORMAL world"));
-		GetWorld()->GetAuthGameMode<AHGOGameMode>()->OnSwitchWorldGraph.Broadcast(false);
-        
-		HideShowGraph(UpsideDownEdges, UpsideDownNodes, true);  // Cacher upside-down
-		HideShowGraph(NormalEdges, NormalNodes, false);         // Afficher normal
-        
-		bInUpsideDownWorld = false;
-	}
-	else
-	{
-		// Passage au monde upside-down
-		UE_LOG(LogTemp, Log, TEXT("Switching to UPSIDE-DOWN world"));
-		GetWorld()->GetAuthGameMode<AHGOGameMode>()->OnSwitchWorldGraph.Broadcast(true);
-        
-		HideShowGraph(NormalEdges, NormalNodes, true);          // Cacher normal
-		HideShowGraph(UpsideDownEdges, UpsideDownNodes, false); // Afficher upside-down
-        
-		bInUpsideDownWorld = true;
-	}
+	// Téléporter le joueur
+	CurrentNode = CachedLinkedNode;
+	GetOwner()->SetActorLocation(CachedLinkedNode->GetComponentLocation());
 
-	// Téléporter le joueur sur le node lié
-	CurrentNode = LinkedNode;
-	GetOwner()->SetActorLocation(LinkedNode->GetComponentLocation());
+	UE_LOG(LogTemp, Log, TEXT("Switched to node ID: %d"), CachedLinkedNode->NodeData.NodeID);
 
-	UE_LOG(LogTemp, Log, TEXT("Switched to node ID: %d (IsUpsideDown: %s)"), 
-		LinkedNode->NodeData.NodeID,
-		LinkedNode->NodeData.bIsUpsideDownNode ? TEXT("Yes") : TEXT("No"));
+	// Clear le cache
+	CachedLinkedNode = nullptr;
 
+	// Compléter le mouvement
 	NotifyMovementCompleted();
 }
 
