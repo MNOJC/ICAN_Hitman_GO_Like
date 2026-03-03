@@ -21,6 +21,13 @@ void AHGOPlayerController::BeginPlay()
 			Subsystem->AddMappingContext(PlayerMappingContext, 0);
 		}
 	}
+
+	// Initialiser la caméra avec la rotation par défaut
+	if (AActor* ViewTarget = GetViewTarget())
+	{
+		ViewTarget->SetActorRotation(DefaultCameraRotation);
+		TargetCameraRotation = DefaultCameraRotation;
+	}
 }
 
 void AHGOPlayerController::Tick(float DeltaTime)
@@ -28,8 +35,32 @@ void AHGOPlayerController::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	if (AActor* ViewTarget = GetViewTarget())
-	{	
-		ViewTarget->SetActorRotation(FMath::RInterpTo(ViewTarget->GetActorRotation(), TargetCameraRotation, DeltaTime, 10.f));
+	{
+		// Si on reset la caméra, interpoler vers DefaultCameraRotation
+		if (bResetCamera)
+		{
+			TargetCameraRotation = FMath::RInterpConstantTo(
+				TargetCameraRotation, 
+				DefaultCameraRotation, 
+				DeltaTime, 
+				CameraResetSpeed * 100.0f
+			);
+
+			// Vérifier si on a atteint la rotation par défaut
+			if (TargetCameraRotation.Equals(DefaultCameraRotation, 0.1f))
+			{
+				TargetCameraRotation = DefaultCameraRotation;
+				bResetCamera = false;
+			}
+		}
+
+		// Interpoler la rotation de la caméra
+		ViewTarget->SetActorRotation(FMath::RInterpTo(
+			ViewTarget->GetActorRotation(), 
+			TargetCameraRotation, 
+			DeltaTime, 
+			10.f
+		));
 	}
 }
 
@@ -62,10 +93,12 @@ void AHGOPlayerController::Look(const FInputActionValue& Value)
 	
 	if (AActor* ViewTarget = GetViewTarget())
 	{
+		// Annuler le reset si l'utilisateur bouge la caméra
+		bResetCamera = false;
 		
 		FRotator NewRotation = ViewTarget->GetActorRotation();
 		NewRotation.Yaw += LookAxis.X;
-		NewRotation.Pitch = FMath::Clamp(NewRotation.Pitch + LookAxis.Y,-90.f,-10.f);
+		NewRotation.Pitch = FMath::Clamp(NewRotation.Pitch + LookAxis.Y, CameraPitchMin, CameraPitchMax);
 		
 		TargetCameraRotation = NewRotation;
 	}
@@ -74,15 +107,19 @@ void AHGOPlayerController::Look(const FInputActionValue& Value)
 void AHGOPlayerController::CameraRotatePressed(const FInputActionValue& Value)
 {
 	if (bPawnSelected)
-	return;
+		return;
 	
 	bRotateCamera = true;
+	bResetCamera = false; // Annuler le reset si on commence à tourner
 }
 
 void AHGOPlayerController::CameraRotateReleased(const FInputActionValue& Value)
 {
 	bRotateCamera = false;
-	//UE_LOG(LogTemp, Warning, TEXT("Camera Rotate Released"));
+	
+	// Démarrer le reset vers la position par défaut
+	bResetCamera = true;
+	
 	PawnReleased(FInputActionValue());
 }
 
@@ -96,8 +133,6 @@ void AHGOPlayerController::PawnPressed(const FInputActionValue& Value)
 
 void AHGOPlayerController::PawnReleased(const FInputActionValue& Value)
 {
-	//UE_LOG(LogTemp, Warning, TEXT("Pawn Released"));
-	
 	if (bPawnSelected)
 	{
 		float SwipeLength = SwipeDelta.Length();
@@ -133,7 +168,7 @@ void AHGOPlayerController::PawnGrabbed(const FInputActionValue& Value)
 {
 	if (bPawnSelected)
 	{
-		GetPawn()->SetActorLocation(StartPawnLocationBeforeGrab + FVector(0, 0, 15.0f));
+		GetPawn()->SetActorLocation(StartPawnLocationBeforeGrab + FVector(0, 0, 2.0f));
         
 		FRotator TiltRotation = FRotator::ZeroRotator;
         

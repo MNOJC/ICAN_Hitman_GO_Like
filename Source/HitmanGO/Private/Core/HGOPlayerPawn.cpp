@@ -36,12 +36,43 @@ void AHGOPlayerPawn::BeginPlay()
 
 	CollisionSwipeComponent->OnClicked.AddDynamic(this, &AHGOPlayerPawn::OnPawnClicked);
 	CollisionSwipeComponent->OnReleased.AddDynamic(this, &AHGOPlayerPawn::OnPawnReleased);
-	
+    
 	InitPawnPosition();
+    
+	// Bloquer l'input au démarrage
+	BlockInput();
+    
+	// Bind au delegate du level generator pour débloquer après l'animation initiale
+	if (UWorld* World = GetWorld())
+	{
+		for (TActorIterator<AHGOTacticalLevelGenerator> GenItr(World); GenItr; ++GenItr)
+		{
+			AHGOTacticalLevelGenerator* Generator = *GenItr;
+			if (Generator)
+			{
+				// Débloquer après l'animation initiale
+				Generator->OnGraphAnimationCompleted.AddDynamic(this, &AHGOPlayerPawn::UnblockInput);
+                
+				// Bloquer pendant les switchs de monde
+				Generator->OnBoardFlipAnimCompleted.AddDynamic(this, &AHGOPlayerPawn::BlockInput);
+				Generator->OnSwitchWorldAnimCompleted.AddDynamic(this, &AHGOPlayerPawn::UnblockInput);
+                
+				break;
+			}
+		}
+	}
 }
 
 void AHGOPlayerPawn::OnPawnClicked(UPrimitiveComponent* TouchedComponent, FKey ButtonPressed)
 {
+	// Bloquer si input désactivé
+	if (bInputBlocked)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Red,
+			TEXT("[Player] Input blocked - Animation in progress"));
+		return;
+	}
+
 	if (UWorld* World = GetWorld())
 	{
 		AHGOPlayerController* HGOController = Cast<AHGOPlayerController>(World->GetFirstPlayerController());
@@ -50,10 +81,13 @@ void AHGOPlayerPawn::OnPawnClicked(UPrimitiveComponent* TouchedComponent, FKey B
 			if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
 			{
 				if (!TurnManager->IsPlayerTurn())
+				{
+					GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Orange,
+						TEXT("[Player] Not your turn"));
 					return;
-				
+				}
 			}
-			//UE_LOG(LogTemp, Warning, TEXT("Pawn Clicked"));
+            
 			HGOController->PawnPressed(FInputActionValue());
 		}
 	}
@@ -135,6 +169,15 @@ void AHGOPlayerPawn::CompleteLevel()
 
 void AHGOPlayerPawn::TriggerPlayerAbility()
 {
+	// Bloquer si input désactivé
+	if (bInputBlocked)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Red,
+			TEXT("[Ability] Input blocked - Animation in progress"));
+		return;
+	}
+
+	
 	GEngine->AddOnScreenDebugMessage(
 		-1, 3.f, FColor::Cyan,
 		TEXT("[Ability] TriggerPlayerAbility called")
@@ -246,6 +289,20 @@ void AHGOPlayerPawn::TriggerPlayerAbility()
 
 	// Appeler PushEnemy sur l'ennemi
 	TargetEnemy->PushEnemy(AlignedDirection);
+}
+
+void AHGOPlayerPawn::BlockInput()
+{
+	bInputBlocked = true;
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red,
+		TEXT("[Player] ✗ INPUT BLOCKED ✗"));
+}
+
+void AHGOPlayerPawn::UnblockInput()
+{
+	bInputBlocked = false;
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
+		TEXT("[Player] ✓ INPUT UNLOCKED ✓"));
 }
 
 void AHGOPlayerPawn::UpdateAbilityCooldown()

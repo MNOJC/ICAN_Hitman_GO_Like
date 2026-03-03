@@ -38,7 +38,7 @@ void AHGOGameMode::InitLevelCamera()
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		
 		AHGOCamera* LevelCamera = World->SpawnActor<AHGOCamera>(LevelCameraClass, SpawnParams);
-		LevelCamera->SetActorLocation(FVector(300.f, 0.f, 0.f));
+		LevelCamera->SetActorLocation(FVector(0.f, 0.f, 0.f));
 		
 		if (!LevelCamera) return;
 

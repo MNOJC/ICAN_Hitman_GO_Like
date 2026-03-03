@@ -41,6 +41,19 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	float SwipeThreshold = 2.0f;
 
+	// Camera settings
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
+	FRotator DefaultCameraRotation = FRotator(-45.0f, 0.0f, 0.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
+	float CameraPitchMin = -90.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
+	float CameraPitchMax = -10.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
+	float CameraResetSpeed = 5.0f;
+
 	FRotator TargetCameraRotation;
 	
 
@@ -60,6 +73,7 @@ private:
 	
 	// CAMERA ROTATION FLAG
 	bool bRotateCamera = false;
+	bool bResetCamera = false;
 
 	// PAWN SELECTION FLAG
 	bool bPawnSelected = false;
