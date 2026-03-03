@@ -472,7 +472,7 @@ void UHGOGraphMovementComponent::UpdateMovement(float DeltaTime)
 		if (Cast<AHGOEnemyPawn>(GetOwner()))
 		{
 			// Hauteur de l'arc (ajustable)
-			float ArcHeight = 150.0f;
+			float ArcHeight = 15.0f;
 			
 			// Calculer la hauteur en utilisant une courbe parabolique
 			// sin donne une courbe douce qui monte puis redescend
