@@ -580,12 +580,14 @@ bool AHGOEnemyPawn::CheckAndKillPlayer()
 	}
 
 	// Vérifier si le joueur est dans le champ de vision (devant, 1 node de distance, connecté)
-	if (GraphMovementComponent->IsNodeInFrontDirection(PlayerNode))
+	if (GraphMovementComponent->IsNodeAdjacent(PlayerNode))
 	{
+		GraphMovementComponent->TryMoveToNodeID(PlayerNode->NodeData.NodeID); // Se tourner vers le joueur
 		UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Player detected in vision! Killing player..."));
 		
 		// Tuer le joueur directement
 		Player->KillPlayer();
+		
 		
 		return true;
 	}

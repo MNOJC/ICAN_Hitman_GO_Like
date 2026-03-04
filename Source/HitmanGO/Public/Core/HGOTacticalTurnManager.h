@@ -84,6 +84,7 @@ private:
 
 	// Enemy turn simulation
 	float EnemyTurnTimer = 0.f;
+	float EnemyTurnCooldownTimer = 0.f;
 
 	// State machine helpers
 	void ChangePhase(ETurnPhase NewPhase);

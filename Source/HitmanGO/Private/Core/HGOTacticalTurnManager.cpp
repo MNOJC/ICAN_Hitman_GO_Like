@@ -116,29 +116,32 @@ void UHGOTacticalTurnManager::TickPlayerTurn(float DeltaTime)
 	// If action completed, transition to enemy turn
 	if (CurrentPhase == ETurnPhase::TransitioningTurn)
 	{
+		EnemyTurnCooldownTimer = 0.f; // Reset cooldown timer for enemy turn
 		ChangeTurn(ETurnState::EnemyTurn);
 	}
 }
 
 void UHGOTacticalTurnManager::TickEnemyTurn(float DeltaTime)
 {
-	
+	EnemyTurnCooldownTimer += DeltaTime;
 	switch (CurrentPhase)
 	{
 		case ETurnPhase::WaitingForInput:
-
-				ChangePhase(ETurnPhase::ExecutingAction);
 				UE_LOG(LogTemp, Warning, TEXT("[TurnManager] Enemy starting action"));
-		
-				for (TActorIterator<AHGOEnemyPawn> EnemyItr(GetWorld()); EnemyItr; ++EnemyItr)
+
+				if (EnemyTurnCooldownTimer >= 0.5f)
 				{
-					AHGOEnemyPawn* Enemy = *EnemyItr;
-					if (Enemy)
-					{
-						Enemy->ExecuteEnemyMove();
-					}
+					ChangePhase(ETurnPhase::ExecutingAction);
+					
+					for (TActorIterator<AHGOEnemyPawn> EnemyItr(GetWorld()); EnemyItr; ++EnemyItr)
+						{
+							AHGOEnemyPawn* Enemy = *EnemyItr;
+							if (Enemy)
+							{
+								Enemy->ExecuteEnemyMove();
+							}
+						}
 				}
-				
 				
 			break;
 			

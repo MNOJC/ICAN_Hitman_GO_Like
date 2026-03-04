@@ -126,28 +126,73 @@ void AHGOTacticalLevelGenerator::ClearVisualGraph()
     bIsAnimating = false;
 }
 
+// Modifications pour HGOTacticalLevelGenerator.cpp
+
 void AHGOTacticalLevelGenerator::BuildAnimationLayers()
 {
     AnimationLayers.Empty();
 
-    // Trouver la node Start
-    UHGONodeGraphComponent* StartNode = nullptr;
+    // DÉTERMINER LE MONDE ACTIF
+    bool bTargetUpsideDownWorld = false;
+    
+    // Trouver le joueur pour connaître le monde actif
+    if (UWorld* World = GetWorld())
+    {
+        for (TActorIterator<AHGOPlayerPawn> PlayerItr(World); PlayerItr; ++PlayerItr)
+        {
+            AHGOPlayerPawn* Player = *PlayerItr;
+            if (Player && Player->GraphMovementComponent)
+            {
+                bTargetUpsideDownWorld = Player->GraphMovementComponent->bInUpsideDownWorld;
+                break;
+            }
+        }
+    }
+
+    GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan,
+        FString::Printf(TEXT("[GraphAnim] Building layers for %s world"), 
+            bTargetUpsideDownWorld ? TEXT("UPSIDE-DOWN") : TEXT("NORMAL")));
+
+    // Filtrer les nodes selon le monde
+    TArray<UHGONodeGraphComponent*> WorldNodes;
     for (UHGONodeGraphComponent* Node : NodeGraphs)
+    {
+        if (Node && Node->NodeData.bIsUpsideDownNode == bTargetUpsideDownWorld)
+        {
+            WorldNodes.Add(Node);
+        }
+    }
+
+    if (WorldNodes.Num() == 0)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[GraphAnim] No nodes in target world!"));
+        return;
+    }
+
+    // Trouver la node Start dans le monde actif
+    UHGONodeGraphComponent* StartNode = nullptr;
+    for (UHGONodeGraphComponent* Node : WorldNodes)
     {
         if (Node && Node->NodeData.NodeType == ENodeType::Start)
         {
             StartNode = Node;
             break;
         }
+
+        if (Node && Node->NodeData.NodeType == ENodeType::PlayerPortal)
+        {
+            StartNode = Node;
+        }
     }
 
     if (!StartNode)
     {
-        UE_LOG(LogTemp, Error, TEXT("[GraphAnim] No Start node found!"));
+        UE_LOG(LogTemp, Error, TEXT("[GraphAnim] No Start node found in %s world!"),
+            bTargetUpsideDownWorld ? TEXT("upside-down") : TEXT("normal"));
         return;
     }
 
-    // BFS pour calculer la distance depuis Start
+    // BFS pour calculer la distance depuis Start (UNIQUEMENT dans le monde actif)
     TMap<UHGONodeGraphComponent*, int32> DistanceMap;
     TQueue<UHGONodeGraphComponent*> Queue;
     
@@ -164,11 +209,13 @@ void AHGOTacticalLevelGenerator::BuildAnimationLayers()
         int32 CurrentDistance = DistanceMap[Current];
         MaxDistance = FMath::Max(MaxDistance, CurrentDistance);
 
-        // Parcourir les voisins
+        // Parcourir les voisins (UNIQUEMENT ceux du même monde)
         for (auto& Pair : Current->ConnectedNodes)
         {
             UHGONodeGraphComponent* Neighbor = Pair.Value;
-            if (Neighbor && !DistanceMap.Contains(Neighbor))
+            if (Neighbor && 
+                !DistanceMap.Contains(Neighbor) &&
+                Neighbor->NodeData.bIsUpsideDownNode == bTargetUpsideDownWorld)
             {
                 DistanceMap.Add(Neighbor, CurrentDistance + 1);
                 Queue.Enqueue(Neighbor);
@@ -187,34 +234,58 @@ void AHGOTacticalLevelGenerator::BuildAnimationLayers()
         FNodeAnimationData AnimData;
         AnimData.Node = Node;
         AnimData.DistanceFromStart = Distance;
-        AnimData.TargetScale = FVector(.02f); // Scale finale des nodes
+        AnimData.TargetScale = FVector(0.02f);
         AnimData.CurrentAnimTime = 0.0f;
 
-        // Trouver les edges connectées à cette node
+        // Trouver les edges connectées à cette node (DANS LE MÊME MONDE)
         for (UHGOEdgeGraphComponent* Edge : EdgeGraphs)
         {
             if (!Edge) continue;
 
+            // Vérifier si cette edge appartient au même monde
+            bool bEdgeInTargetWorld = false;
+            
             for (UHGONodeGraphComponent* OtherNode : NodeGraphs)
             {
                 if (!OtherNode) continue;
 
-                for (auto& Connection : OtherNode->ConnectedNodes)
+                // L'edge est dans le monde cible si ses nodes source/target le sont
+                if (OtherNode->NodeData.NodeID == Edge->EdgeData.SourceNodeID)
                 {
-                    if (Connection.Value == Node && 
-                        OtherNode->NodeData.NodeID == Edge->EdgeData.SourceNodeID &&
-                        Node->NodeData.NodeID == Edge->EdgeData.TargetNodeID)
+                    if (OtherNode->NodeData.bIsUpsideDownNode == bTargetUpsideDownWorld)
                     {
-                        AnimData.ConnectedEdges.AddUnique(Edge);
+                        // Vérifier aussi la target
+                        for (auto& Connection : OtherNode->ConnectedNodes)
+                        {
+                            if (Connection.Value == Node && 
+                                Node->NodeData.NodeID == Edge->EdgeData.TargetNodeID)
+                            {
+                                bEdgeInTargetWorld = true;
+                                AnimData.ConnectedEdges.AddUnique(Edge);
+                                break;
+                            }
+                        }
                     }
                 }
+                
+                if (bEdgeInTargetWorld)
+                    break;
             }
         }
 
         AnimationLayers[Distance].Add(AnimData);
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[GraphAnim] Built %d animation layers"), AnimationLayers.Num());
+    GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
+        FString::Printf(TEXT("[GraphAnim] Built %d layers for %s world (%d nodes)"), 
+            AnimationLayers.Num(),
+            bTargetUpsideDownWorld ? TEXT("UPSIDE-DOWN") : TEXT("NORMAL"),
+            WorldNodes.Num()));
+
+    for (int32 i = 0; i < AnimationLayers.Num(); ++i)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[GraphAnim] Layer %d: %d nodes"), i, AnimationLayers[i].Num());
+    }
 }
 
 void AHGOTacticalLevelGenerator::PlayGraphAnimation(bool bReversed)

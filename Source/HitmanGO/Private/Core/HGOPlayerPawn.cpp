@@ -60,6 +60,11 @@ void AHGOPlayerPawn::BeginPlay()
 				break;
 			}
 		}
+
+		if(AHGOGameMode* GM =  Cast<AHGOGameMode>(World->GetAuthGameMode()))
+		{
+			GM->OnSwitchWorldGraph.AddDynamic(this, &AHGOPlayerPawn::OnSwitchWorldTrigger);
+		}
 	}
 }
 
@@ -149,6 +154,7 @@ void AHGOPlayerPawn::InitPawnPosition()
 
 void AHGOPlayerPawn::KillPlayer()
 {
+	
 	UE_LOG(LogTemp, Warning, TEXT("[PlayerPawn] Player has been killed!"));
 	
 	// Broadcast le delegate pour notifier les blueprints
@@ -345,6 +351,11 @@ void AHGOPlayerPawn::CheckAbilityAvailability()
 		);
 		OnAbilityBecameUnavailable();
 	}
+}
+
+void AHGOPlayerPawn::OnSwitchWorldTrigger(bool bToUpsideDown)
+{
+	BlockInput();
 }
 
 void AHGOPlayerPawn::OnAbilityBecameAvailable_Implementation()

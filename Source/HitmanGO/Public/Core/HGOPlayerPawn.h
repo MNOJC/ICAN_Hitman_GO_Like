@@ -7,6 +7,7 @@
 #include "GameFramework/Pawn.h"
 #include "InputCoreTypes.h"
 #include "EngineUtils.h"
+#include "Core/HGOGameMode.h"
 #include "HGOGraphMovementComponent.h"
 #include "HGOPlayerPawn.generated.h"
 
@@ -98,7 +99,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Player")
 	bool IsInputBlocked() const { return bInputBlocked; }
 
-
+	UFUNCTION()
+	void OnSwitchWorldTrigger(bool bToUpsideDown);
+	
 	void UpdateAbilityCooldown();
 	void CheckAbilityAvailability();
 
