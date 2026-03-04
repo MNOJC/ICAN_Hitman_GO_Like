@@ -101,11 +101,9 @@ public:
 
 	UFUNCTION()
 	void OnSwitchWorldTrigger(bool bToUpsideDown);
-
-
+	
 	void UpdateAbilityCooldown();
 	void CheckAbilityAvailability();
-	
 
 protected:
 	// Ability cooldown

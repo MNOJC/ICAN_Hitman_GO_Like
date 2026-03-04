@@ -154,6 +154,7 @@ void AHGOPlayerPawn::InitPawnPosition()
 
 void AHGOPlayerPawn::KillPlayer()
 {
+	
 	UE_LOG(LogTemp, Warning, TEXT("[PlayerPawn] Player has been killed!"));
 	
 	// Broadcast le delegate pour notifier les blueprints

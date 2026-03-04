@@ -25,7 +25,7 @@ public:
 	UHGONodeGraphComponent* CurrentNode;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
-	float MovementSpeed = 700.0f;
+	float MovementSpeed = 200.0f;
 
 	UPROPERTY(BlueprintReadWrite, Category = "State")
 	bool bInUpsideDownWorld = false;
@@ -50,7 +50,7 @@ public:
 	bool TryMoveToNodeID(int32 TargetNodeID);
 	
 	UFUNCTION(BlueprintCallable, Category = "Movement")
-	bool IsNodeInFrontDirection(UHGONodeGraphComponent* TargetedNode) const;
+	bool IsNodeAdjacent(UHGONodeGraphComponent* TargetedNode) const;
 
 	// Check if a target node is aligned in a straight direction (any distance, must be connected)
 	UFUNCTION(BlueprintCallable, Category = "Movement")
@@ -67,6 +67,8 @@ protected:
 	UHGONodeGraphComponent* TargetNode;
 	float MovementProgress;
 	UHGONodeGraphComponent* CachedLinkedNode = nullptr;
+
+	bool bSwitchLastRound = false;
 	
 	void UpdateMovement(float DeltaTime);
 	void UpdateGrabFeedback(float DeltaTime);
