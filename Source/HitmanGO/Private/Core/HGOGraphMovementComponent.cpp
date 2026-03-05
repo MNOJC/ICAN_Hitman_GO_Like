@@ -146,44 +146,14 @@ void UHGOGraphMovementComponent::SetCurrentNode(UHGONodeGraphComponent* NewNode)
 	}
 }
 
-bool UHGOGraphMovementComponent::IsNodeInFrontDirection(UHGONodeGraphComponent* TargetedNode) const
+bool UHGOGraphMovementComponent::IsNodeAdjacent(UHGONodeGraphComponent* TargetedNode) const
 {
-	if (!CurrentNode || !TargetedNode || !GetOwner())
+	if (!CurrentNode || !TargetedNode)
 	{
 		return false;
 	}
 
-	// Vérifier si la target est devant (dans la direction du forward)
-	FVector CurrentPos = CurrentNode->GetComponentLocation();
-	FVector TargetPos = TargetedNode->GetComponentLocation();
-	FVector ToTarget = (TargetPos - CurrentPos).GetSafeNormal();
-	FVector Forward = GetOwner()->GetActorForwardVector();
-	
-	// Calculer le dot product (cosinus de l'angle)
-	float DotProduct = FVector::DotProduct(Forward, ToTarget);
-	
-	GEngine->AddOnScreenDebugMessage(
-		-1,
-		2.f,
-		FColor::Yellow,
-		FString::Printf(TEXT("[Vision] Checking node %d -> %d | Dot: %.2f"), 
-			CurrentNode->NodeData.NodeID, TargetedNode->NodeData.NodeID, DotProduct)
-	);
-	
-	// Si dot > 0.7, l'angle est inférieur à ~45 degrés (devant)
-	if (DotProduct < 0.7f)
-	{
-		GEngine->AddOnScreenDebugMessage(
-			-1,
-			2.f,
-			FColor::Orange,
-			TEXT("[Vision] Target not in front (angle too wide)")
-		);
-		return false;
-	}
-
-	// Vérifier qu'il y a une connexion directe entre les nodes
-	// C'EST LA VRAIE VÉRIFICATION DE "1 NODE DE DISTANCE"
+	// Directions possibles
 	TArray<ENodeDirection> AllDirections = {
 		ENodeDirection::North,
 		ENodeDirection::South,
@@ -194,16 +164,19 @@ bool UHGOGraphMovementComponent::IsNodeInFrontDirection(UHGONodeGraphComponent* 
 	for (ENodeDirection Direction : AllDirections)
 	{
 		UHGONodeGraphComponent* AdjacentNode = CurrentNode->GetNodeInDirection(Direction);
-		if (AdjacentNode && AdjacentNode->NodeData.NodeID == TargetedNode->NodeData.NodeID)
+
+		if (AdjacentNode && AdjacentNode == TargetedNode)
 		{
 			GEngine->AddOnScreenDebugMessage(
 				-1,
 				2.f,
 				FColor::Green,
-				FString::Printf(TEXT("[Vision] ✓ PLAYER DETECTED! (Direction: %s)"), 
+				FString::Printf(TEXT("[Graph] ✓ Node %d is adjacent (Direction: %s)"),
+					TargetedNode->NodeData.NodeID,
 					*UEnum::GetValueAsString(Direction))
 			);
-			return true; // La node cible est directement adjacente ET devant
+
+			return true; // La node est adjacente (peu importe la direction)
 		}
 	}
 
@@ -211,10 +184,10 @@ bool UHGOGraphMovementComponent::IsNodeInFrontDirection(UHGONodeGraphComponent* 
 		-1,
 		2.f,
 		FColor::Red,
-		TEXT("[Vision] No direct connection found")
+		TEXT("[Graph] Node not adjacent")
 	);
-	
-	return false; // Pas de connexion directe
+
+	return false;
 }
 
 bool UHGOGraphMovementComponent::IsNodeInAlignedDirection(UHGONodeGraphComponent* TargetedNode, ENodeDirection& OutDirection) const
@@ -472,7 +445,7 @@ void UHGOGraphMovementComponent::UpdateMovement(float DeltaTime)
 		UE_LOG(LogTemp, Log, TEXT("[Movement] Arrived at node %d"), TargetNode->NodeData.NodeID);
 
 		// Check for PlayerPortal BEFORE notifying turn system
-		if (TargetNode->NodeData.NodeType == ENodeType::PlayerPortal)
+		/*if (TargetNode->NodeData.NodeType == ENodeType::PlayerPortal)
 		{
 			UE_LOG(LogTemp, Log, TEXT("[Movement] Player reached PlayerPortal node!"));
 			
@@ -482,11 +455,12 @@ void UHGOGraphMovementComponent::UpdateMovement(float DeltaTime)
 			
 			SwitchWorldGraph();
 		} 
-		else
-		{
+		else*/
+		//{
 			// Notifier la fin du mouvement (CurrentNode sera mis à jour dans cette fonction)
 			NotifyMovementCompleted();
-		}
+		// Reset du flag de switch (au cas où)
+		//}
 		
 	}
 	else
@@ -544,6 +518,7 @@ void UHGOGraphMovementComponent::NotifyMovementStarted()
 		if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
 		{
 			TurnManager->RegisterActionStarted();
+			
 		}
 	}
 }
@@ -641,6 +616,11 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 	// CAS 2: C'est le JOUEUR qui vient de bouger
 	if (AHGOPlayerPawn* Player = Cast<AHGOPlayerPawn>(GetOwner()))
 	{
+		if(CurrentNode->NodeData.NodeType != ENodeType::PlayerPortal)
+		{
+			bSwitchLastRound = false; // Réinitialiser le flag de switch si on n'est pas sur un portail (pour permettre les futurs switches)
+		}
+		
 		// PRIORITÉ 1: Vérifier si le joueur a atteint le Goal
 		if (CurrentNode && CurrentNode->NodeData.NodeType == ENodeType::Goal)
 		{
@@ -677,6 +657,16 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 				return;
 			}
 		}
+
+		if (CurrentNode && CurrentNode->NodeData.NodeType == ENodeType::PlayerPortal && !bSwitchLastRound)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[Movement] Player reached PlayerPortal node!"));
+			
+			// Mettre à jour CurrentNode AVANT le switch de monde
+			bSwitchLastRound = true;
+			GEngine->AddOnScreenDebugMessage(1, 20.0f, FColor::Emerald, "SET TO TRUE",false);// Marquer que le switch a été déclenché ce tour-ci
+			SwitchWorldGraph();
+		} 
 	}
 	
 	// Aucun événement spécial, compléter l'action normalement
@@ -706,5 +696,15 @@ void UHGOGraphMovementComponent::TickComponent(float DeltaTime, ELevelTick TickT
 	if (bIsMoving)
 	{
 		UpdateMovement(DeltaTime);
+	}
+
+	if(AHGOPlayerPawn* Player = Cast<AHGOPlayerPawn>(GetOwner()))
+	{
+		GEngine->AddOnScreenDebugMessage(
+	1,
+	0.0f,
+	FColor::Cyan,
+	FString::Printf(TEXT("bSwitchLastRound: %s"), bSwitchLastRound ? TEXT("TRUE") : TEXT("FALSE"))
+	);
 	}
 }
