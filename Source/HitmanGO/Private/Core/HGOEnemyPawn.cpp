@@ -18,6 +18,14 @@ AHGOEnemyPawn::AHGOEnemyPawn()
 	EnemyMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EnemyMeshComponent"));
 	EnemyMeshComponent->SetupAttachment(SceneRoot);
 
+	// Detection collision : tue le joueur s'il marche sur la même case, même si l'ennemi est invisible
+	DetectionCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("DetectionCollision"));
+	DetectionCollision->SetupAttachment(SceneRoot);
+	DetectionCollision->SetBoxExtent(FVector(40.f, 40.f, 40.f));
+	DetectionCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	DetectionCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
+	DetectionCollision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+
 	GraphMovementComponent = CreateDefaultSubobject<UHGOGraphMovementComponent>(TEXT("GraphMovementComponent"));
 }
 
@@ -27,6 +35,9 @@ void AHGOEnemyPawn::BeginPlay()
 	Super::BeginPlay();
 	
 	InitEnemyPosition();
+
+	// Binder l'overlap pour tuer le joueur quand il entre sur la même case (peu importe le monde)
+	DetectionCollision->OnComponentBeginOverlap.AddDynamic(this, &AHGOEnemyPawn::OnDetectionOverlapBegin);
 	
 	// S'abonner au changement de monde du joueur
 	if (UWorld* World = GetWorld())
@@ -545,6 +556,21 @@ void AHGOEnemyPawn::UpdateVisibilityForWorld(bool bPlayerInUpsideDownWorld)
 bool AHGOEnemyPawn::OnEnemyPassThroughPortal_Implementation()
 {
 	return bInUpsideDownWorld;
+}
+
+// Overlap sur la DetectionCollision : tue le joueur s'il est sur la même case physique.
+// Pas de vérification de monde — l'ennemi est juste invisible dans l'autre monde,
+// mais sa présence physique reste dangereuse.
+void AHGOEnemyPawn::OnDetectionOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
+	bool bFromSweep, const FHitResult& SweepResult)
+{
+	AHGOPlayerPawn* Player = Cast<AHGOPlayerPawn>(OtherActor);
+	if (!Player)
+		return;
+
+	UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Player walked onto the same tile! Killing player (world-agnostic overlap)."));
+	Player->KillPlayer();
 }
 
 bool AHGOEnemyPawn::CheckAndKillPlayer()

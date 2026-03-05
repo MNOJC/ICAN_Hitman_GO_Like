@@ -610,6 +610,11 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 		
 		// Pas de kill, rotation normale
 		EnemyPawn->ExecuteEnemyRotation();
+
+		// Vérifier si l'ennemi est adjacent au joueur (même monde uniquement)
+		// La collision physique gère le cas "même case, monde différent"
+		EnemyPawn->CheckAndKillPlayer();
+
 		return;	
 	}
 	

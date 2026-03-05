@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "HGOGraphMovementComponent.h"
+#include "Components/BoxComponent.h"
 #include "GameFramework/Pawn.h"
 #include "Core/HGOPlayerPawn.h"
 #include "HGOEnemyPawn.generated.h"
@@ -37,6 +38,10 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components")
 	UStaticMeshComponent* EnemyMeshComponent;
+
+	// Collision box for detecting player overlap (works across worlds - enemy is just invisible)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components")
+	UBoxComponent* DetectionCollision;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Enemy")
 	UHGOGraphMovementComponent* GraphMovementComponent;
@@ -121,6 +126,12 @@ private:
 	void HandleEnemyPortal();
 	void BuildPortal();
 	void CrossPortal();
+
+	// Overlap callback for detection collision (kills player on overlap, regardless of world)
+	UFUNCTION()
+	void OnDetectionOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
+		bool bFromSweep, const FHitResult& SweepResult);
 	
 	
 	
