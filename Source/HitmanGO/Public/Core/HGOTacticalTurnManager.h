@@ -69,6 +69,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Turn System")
 	void RegisterActionCompleted();
 
+	// Stop all turn processing (called on player death)
+	UFUNCTION(BlueprintCallable, Category = "Turn System")
+	void StopGame();
+
+	UFUNCTION(BlueprintCallable, Category = "Turn System")
+	bool IsGameOver() const { return bGameOver; }
+
 	// Delegates
 	UPROPERTY(BlueprintAssignable, Category = "Turn System")
 	FOnTurnChanged OnTurnChanged;
@@ -81,6 +88,9 @@ private:
 	// Current state
 	ETurnState CurrentTurnState = ETurnState::PlayerTurn;
 	ETurnPhase CurrentPhase = ETurnPhase::Idle;
+
+	// Game over flag - stops all turn processing when player dies
+	bool bGameOver = false;
 
 	// Enemy turn simulation
 	float EnemyTurnTimer = 0.f;

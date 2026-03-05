@@ -70,6 +70,9 @@ public:
 
 	void ExecuteEnemyRotation();
 
+	// Appelé par GraphMovementComponent quand l'ennemi arrive sur une node portail
+	void HandlePortalOnArrival();
+
 	// Update visibility based on world state
 	UFUNCTION(BlueprintCallable, Category = "Enemy")
 	void UpdateVisibilityForWorld(bool bPlayerInUpsideDownWorld);
@@ -92,6 +95,8 @@ public:
 	void StartReturnToPatrol();
 	bool IsNodeInPatrol(int32 NodeID) const;
 
+	void HandleEnemyPortal();
+
 	// Push state (accessed by GraphMovementComponent)
 	bool bBeingPushed = false;
 	bool bReturningToPatrol = false;
@@ -108,6 +113,10 @@ private:
 	// Portal state
 	EEnemyPortalState PortalState = EEnemyPortalState::None;
 
+	// Empêche le re-trigger de construction de portail quand l'ennemi arrive
+	// sur la node liée (qui est aussi de type EnemyPortal) après avoir traversé
+	bool bJustCrossedPortal = false;
+
 	// Rotation
 	bool bIsRotating = false;
 	FRotator NextRotation;
@@ -123,7 +132,7 @@ private:
 	int32 GetNextNodeID();
 	
 	// Portal handling
-	void HandleEnemyPortal();
+	
 	void BuildPortal();
 	void CrossPortal();
 

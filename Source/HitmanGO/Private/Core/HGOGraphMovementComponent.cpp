@@ -609,11 +609,21 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 		}
 		
 		// Pas de kill, rotation normale
-		EnemyPawn->ExecuteEnemyRotation();
+		// SAUF si l'ennemi vient d'arriver sur un portail : construire le portail ce même tour
+		if (CurrentNode->NodeData.NodeType == ENodeType::EnemyPortal)
+		{
+			// Arrivée sur le portail : construction immédiate, pas de rotation
+			GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Purple,
+				TEXT("[Enemy] Arrived at portal - building immediately this turn"));
+			EnemyPawn->HandleEnemyPortal();
+		}
+		else
+		{
+			EnemyPawn->ExecuteEnemyRotation();
 
-		// Vérifier si l'ennemi est adjacent au joueur (même monde uniquement)
-		// La collision physique gère le cas "même case, monde différent"
-		EnemyPawn->CheckAndKillPlayer();
+			// Vérifier si l'ennemi est adjacent au joueur (même monde uniquement)
+			EnemyPawn->CheckAndKillPlayer();
+		}
 
 		return;	
 	}

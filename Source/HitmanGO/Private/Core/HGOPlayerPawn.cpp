@@ -154,13 +154,19 @@ void AHGOPlayerPawn::InitPawnPosition()
 
 void AHGOPlayerPawn::KillPlayer()
 {
-	
 	UE_LOG(LogTemp, Warning, TEXT("[PlayerPawn] Player has been killed!"));
 	
+	// Stopper le système de tour immédiatement pour bloquer tout mouvement ennemi
+	if (UWorld* World = GetWorld())
+	{
+		if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
+		{
+			TurnManager->StopGame();
+		}
+	}
+
 	// Broadcast le delegate pour notifier les blueprints
 	OnPlayerDeath.Broadcast();
-	
-	// TODO: Ajouter des effets visuels, animations, son, etc.
 }
 
 void AHGOPlayerPawn::CompleteLevel()
