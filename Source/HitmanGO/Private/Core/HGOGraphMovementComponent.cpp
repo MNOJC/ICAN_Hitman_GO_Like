@@ -532,6 +532,9 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 	// CAS 1: C'est un ENNEMI qui vient de bouger
 	if(AHGOEnemyPawn* EnemyPawn = Cast<AHGOEnemyPawn>(GetOwner()))
 	{
+		if (!EnemyPawn) return;
+
+		EnemyPawn->CheckAndKillPlayer();
 		// SOUS-CAS 1A: Ennemi en train d'être poussé
 		if (EnemyPawn->bBeingPushed)
 		{

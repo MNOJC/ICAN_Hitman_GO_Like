@@ -61,6 +61,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Events")
 	FOnGraphAnimationCompleted OnGraphAnimationCompleted;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level Generation")
+	float ZOffset = 0.0f;
+
 	UPROPERTY()
 	TArray<UHGONodeGraphComponent*> NodeGraphs;
 
