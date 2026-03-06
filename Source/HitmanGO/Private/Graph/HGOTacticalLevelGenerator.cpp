@@ -38,8 +38,11 @@ void AHGOTacticalLevelGenerator::GenerateVisualGraph()
 
         NodeComp->SetupAttachment(GetRootComponent());
         NodeComp->RegisterComponent();
+
+        FVector WorldNodePos = NodeData.Position;
+        WorldNodePos = FVector(WorldNodePos.X, WorldNodePos.Y, ZOffset);
         
-        NodeComp->SetWorldLocation(NodeData.Position);
+        NodeComp->SetWorldLocation(WorldNodePos);
         NodeComp->NodeData = NodeData;
 
         // CACHER TOUTES LES NODES AU DÉPART (scale 0)
