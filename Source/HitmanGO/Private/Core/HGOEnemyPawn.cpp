@@ -550,6 +550,7 @@ void AHGOEnemyPawn::CrossPortal()
 	// AdvancePathIndex : CurrentPathIndex doit maintenant pointer sur la node APRÈS la node portail liée
 	// (on vient d'arriver sur la node portail de l'autre monde, la prochaine étape est la node suivante du pattern)
 	AdvancePathIndex();
+	CheckAndKillPlayer();
 
 	// Ce tour se termine ici — le mouvement vers la prochaine node se fera au tour suivant
 	if (UWorld* World = GetWorld())
@@ -584,16 +585,14 @@ bool AHGOEnemyPawn::OnEnemyPassThroughPortal_Implementation()
 // Overlap sur la DetectionCollision : tue le joueur s'il est sur la même case physique.
 // Pas de vérification de monde — l'ennemi est juste invisible dans l'autre monde,
 // mais sa présence physique reste dangereuse.
-void AHGOEnemyPawn::OnDetectionOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
-	bool bFromSweep, const FHitResult& SweepResult)
+void AHGOEnemyPawn::OnDetectionOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	AHGOPlayerPawn* Player = Cast<AHGOPlayerPawn>(OtherActor);
 	if (!Player)
 		return;
 
 	UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Player walked onto the same tile! Killing player (world-agnostic overlap)."));
-	Player->KillPlayer();
+	Player->KillPlayer(true);
 }
 
 bool AHGOEnemyPawn::CheckAndKillPlayer()
@@ -635,7 +634,7 @@ bool AHGOEnemyPawn::CheckAndKillPlayer()
 		UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Player detected in vision! Killing player..."));
 		
 		// Tuer le joueur directement
-		Player->KillPlayer();
+		Player->KillPlayer(false);
 		
 		
 		return true;

@@ -470,18 +470,13 @@ void UHGOGraphMovementComponent::UpdateMovement(float DeltaTime)
 		FVector EndPos = TargetNode->GetComponentLocation();
 		FVector NewPos = FMath::Lerp(StartPos, EndPos, MovementProgress);
 		
-		// Ajouter un arc de mouvement pour l'EnemyPawn
-		if (Cast<AHGOEnemyPawn>(GetOwner()))
-		{
-			// Hauteur de l'arc (ajustable)
-			float ArcHeight = 15.0f;
+		float ArcHeight = 5.0f;
 			
 			// Calculer la hauteur en utilisant une courbe parabolique
 			// sin donne une courbe douce qui monte puis redescend
-			float HeightOffset = FMath::Sin(MovementProgress * PI) * ArcHeight;
+		float HeightOffset = FMath::Sin(MovementProgress * PI) * ArcHeight;
 			
-			NewPos.Z += HeightOffset;
-		}
+		NewPos.Z += HeightOffset;
         
 		GetOwner()->SetActorLocation(NewPos);
 	}
@@ -532,28 +527,6 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 		TargetNode = nullptr;
 
 		OnMovementCompleted.Broadcast(CurrentNode->NodeData.NodeID);
-
-		if (AHGOPlayerPawn* Player = Cast<AHGOPlayerPawn>(GetOwner()))
-		{
-			for (TActorIterator<AHGOEnemyPawn> EnemyItr(GetWorld()); EnemyItr; ++EnemyItr)
-			{
-				AHGOEnemyPawn* Enemy = *EnemyItr;
-
-				if (Enemy)
-				{
-					if (Enemy->GraphMovementComponent->CurrentNode)
-					{
-						if(CurrentNode->NodeData.NodeID == Enemy->GraphMovementComponent->CurrentNode->NodeData.NodeID)
-						{
-							Player->KillPlayer();
-							return; // Player is dead, no need to check further
-						}
-					}
-				
-				}
-			
-			}
-		}
 	}
 
 	// CAS 1: C'est un ENNEMI qui vient de bouger

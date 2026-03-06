@@ -152,7 +152,7 @@ void AHGOPlayerPawn::InitPawnPosition()
 	}
 }
 
-void AHGOPlayerPawn::KillPlayer()
+void AHGOPlayerPawn::KillPlayer(bool KillPlayerFromOtherWorld)
 {
 	UE_LOG(LogTemp, Warning, TEXT("[PlayerPawn] Player has been killed!"));
 	
@@ -166,7 +166,7 @@ void AHGOPlayerPawn::KillPlayer()
 	}
 
 	// Broadcast le delegate pour notifier les blueprints
-	OnPlayerDeath.Broadcast();
+	OnPlayerDeath.Broadcast(KillPlayerFromOtherWorld);
 }
 
 void AHGOPlayerPawn::CompleteLevel()
@@ -308,6 +308,7 @@ void AHGOPlayerPawn::BlockInput()
 	bInputBlocked = true;
 	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red,
 		TEXT("[Player] ✗ INPUT BLOCKED ✗"));
+	OnInputBlocked.Broadcast(true);
 }
 
 void AHGOPlayerPawn::UnblockInput()
@@ -315,6 +316,7 @@ void AHGOPlayerPawn::UnblockInput()
 	bInputBlocked = false;
 	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
 		TEXT("[Player] ✓ INPUT UNLOCKED ✓"));
+	OnInputBlocked.Broadcast(false);
 }
 
 void AHGOPlayerPawn::UpdateAbilityCooldown()
