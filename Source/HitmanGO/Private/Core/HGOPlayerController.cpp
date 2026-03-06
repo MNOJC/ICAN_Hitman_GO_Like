@@ -108,6 +108,8 @@ void AHGOPlayerController::CameraRotatePressed(const FInputActionValue& Value)
 {
 	if (bPawnSelected)
 		return;
+	if(bPawnHovered)
+		return;
 	
 	bRotateCamera = true;
 	bResetCamera = false; // Annuler le reset si on commence à tourner
@@ -162,6 +164,7 @@ void AHGOPlayerController::PawnReleased(const FInputActionValue& Value)
 	}
 
 	bPawnSelected = false;
+	bPawnHovered = false;
 }
 
 void AHGOPlayerController::PawnGrabbed(const FInputActionValue& Value)

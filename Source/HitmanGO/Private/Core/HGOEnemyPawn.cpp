@@ -87,6 +87,7 @@ void AHGOEnemyPawn::InitEnemyPosition()
 	if (StartNode)
 	{
 		GraphMovementComponent->SetCurrentNode(StartNode);
+		this->SetActorRotation(DefaultRotation);
 		UE_LOG(LogTemp, Log, TEXT("[EnemyPawn] Initialized at node %d"), StartNodeID);
 	}
 	else
@@ -511,6 +512,8 @@ void AHGOEnemyPawn::CrossPortal()
 			&& NodeComp->NodeData.NodeType == ENodeType::EnemyPortal)
 		{
 			LinkedPortalNode = NodeComp;
+			UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Found linked portal node %d in %s world"), 
+				LinkedPortalNode->NodeData.NodeID, bTargetWorld ? TEXT("UPSIDE-DOWN") : TEXT("NORMAL"));
 			break;
 		}
 	}
@@ -715,6 +718,7 @@ void AHGOEnemyPawn::PushEnemy(ENodeDirection Direction)
 
 	// Démarrer le push
 	bBeingPushed = true;
+	bJustCrossedPortal = false; // Réinitialiser le flag de traversée de portail pour éviter les interactions bizarres pendant le push
 	
 	GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
 		FString::Printf(TEXT("[Push] Starting push - will move %d nodes"), PushPathNodeIDs.Num() - 1));

@@ -64,6 +64,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Path")
 	EPathFollowType PathFollowType = EPathFollowType::Loop;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Path")
+	FRotator DefaultRotation = FRotator::ZeroRotator;
+
 	// Execute the enemy's movement to the next node in path
 	UFUNCTION(BlueprintCallable, Category = "Enemy")
 	void ExecuteEnemyMove();
