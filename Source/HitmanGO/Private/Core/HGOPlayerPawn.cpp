@@ -71,18 +71,21 @@ void AHGOPlayerPawn::BeginPlay()
 void AHGOPlayerPawn::OnPawnClicked(UPrimitiveComponent* TouchedComponent, FKey ButtonPressed)
 {
 	// Bloquer si input désactivé
-	if (bInputBlocked)
+	/*if (bInputBlocked)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Red,
 			TEXT("[Player] Input blocked - Animation in progress"));
 		return;
-	}
+	}*/
+
+	
 
 	if (UWorld* World = GetWorld())
 	{
 		AHGOPlayerController* HGOController = Cast<AHGOPlayerController>(World->GetFirstPlayerController());
 		if (HGOController)
 		{
+			HGOController->bPawnHovered = true;
 			if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
 			{
 				if (!TurnManager->IsPlayerTurn())
@@ -105,6 +108,7 @@ void AHGOPlayerPawn::OnPawnReleased(UPrimitiveComponent* TouchedComponent, FKey 
 		AHGOPlayerController* HGOController = Cast<AHGOPlayerController>(World->GetFirstPlayerController());
 		if (HGOController)
 		{
+			HGOController->bPawnHovered = false;
 			//UE_LOG(LogTemp, Warning, TEXT("Pawn Released"));
 			HGOController->PawnReleased(FInputActionValue());
 		}

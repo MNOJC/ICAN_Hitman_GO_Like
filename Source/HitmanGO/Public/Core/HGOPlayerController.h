@@ -55,6 +55,7 @@ public:
 	float CameraResetSpeed = 5.0f;
 
 	FRotator TargetCameraRotation;
+	bool bPawnHovered = false;
 	
 
 private:
