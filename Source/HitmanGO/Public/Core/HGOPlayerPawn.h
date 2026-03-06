@@ -14,10 +14,12 @@
 struct FKey;
 
 // Delegate pour la mort du joueur
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayerDeath);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerDeath, bool, bKillInOtherWorld);
 
 // Delegate pour la complétion du niveau
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLevelComplete);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInputBlocked, bool, bIsBlocked);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAbilityCooldownUpdated, int32, NewCooldown);
 
@@ -37,6 +39,9 @@ public:
 	// Delegate appelé quand le joueur atteint le goal
 	UPROPERTY(BlueprintAssignable, Category = "Player|Events")
 	FOnLevelComplete OnLevelComplete;
+
+	UPROPERTY(BlueprintAssignable, Category = "Player|Events")
+	FOnInputBlocked OnInputBlocked;
 
 	UPROPERTY(BlueprintAssignable, Category = "Player|Events")
 	FOnAbilityCooldownUpdated OnAbilityCooldownUpdated;
@@ -73,7 +78,7 @@ public:
 
 	// Fonction pour tuer le joueur
 	UFUNCTION(BlueprintCallable, Category = "Player")
-	void KillPlayer();
+	void KillPlayer(bool KillPlayerFromOtherWorld);
 
 	// Fonction pour compléter le niveau
 	UFUNCTION(BlueprintCallable, Category = "Player")
@@ -108,7 +113,7 @@ public:
 protected:
 	// Ability cooldown
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Ability")
-	int32 AbilityCooldownTurns = 3;
+	int32 AbilityCooldownTurns = 2;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Player|Ability")
 	int32 CurrentAbilityCooldown = 0;

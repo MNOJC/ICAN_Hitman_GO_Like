@@ -26,6 +26,10 @@ void UHGOTacticalTurnManager::Deinitialize()
 
 bool UHGOTacticalTurnManager::Tick(float DeltaTime)
 {
+	// Si le joueur est mort, on ne fait plus rien
+	if (bGameOver)
+		return true;
+
 	if (GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(
@@ -71,6 +75,15 @@ void UHGOTacticalTurnManager::RegisterActionCompleted()
 		UE_LOG(LogTemp, Warning, TEXT("[TurnManager] Action completed"));
 		ChangePhase(ETurnPhase::TransitioningTurn);
 	}
+}
+
+void UHGOTacticalTurnManager::StopGame()
+{
+	bGameOver = true;
+	UE_LOG(LogTemp, Warning, TEXT("[TurnManager] ═══ GAME OVER - Turn system stopped ═══"));
+	
+	GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Red,
+		TEXT("[TurnManager] ★ GAME OVER ★ - Turn system halted"));
 }
 
 void UHGOTacticalTurnManager::ChangePhase(ETurnPhase NewPhase)
