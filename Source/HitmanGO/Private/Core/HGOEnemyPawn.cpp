@@ -715,6 +715,7 @@ void AHGOEnemyPawn::PushEnemy(ENodeDirection Direction)
 
 	// Démarrer le push
 	bBeingPushed = true;
+	bJustCrossedPortal = false; // Réinitialiser le flag de traversée de portail pour éviter les interactions bizarres pendant le push
 	
 	GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
 		FString::Printf(TEXT("[Push] Starting push - will move %d nodes"), PushPathNodeIDs.Num() - 1));
