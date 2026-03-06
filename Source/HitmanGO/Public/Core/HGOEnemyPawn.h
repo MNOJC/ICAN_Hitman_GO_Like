@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "HGOGraphMovementComponent.h"
+#include "Components/BoxComponent.h"
 #include "GameFramework/Pawn.h"
 #include "Core/HGOPlayerPawn.h"
 #include "HGOEnemyPawn.generated.h"
@@ -38,6 +39,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components")
 	UStaticMeshComponent* EnemyMeshComponent;
 
+	// Collision box for detecting player overlap (works across worlds - enemy is just invisible)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components")
+	UBoxComponent* DetectionCollision;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Enemy")
 	UHGOGraphMovementComponent* GraphMovementComponent;
 
@@ -65,6 +70,9 @@ public:
 
 	void ExecuteEnemyRotation();
 
+	// Appelé par GraphMovementComponent quand l'ennemi arrive sur une node portail
+	void HandlePortalOnArrival();
+
 	// Update visibility based on world state
 	UFUNCTION(BlueprintCallable, Category = "Enemy")
 	void UpdateVisibilityForWorld(bool bPlayerInUpsideDownWorld);
@@ -87,6 +95,8 @@ public:
 	void StartReturnToPatrol();
 	bool IsNodeInPatrol(int32 NodeID) const;
 
+	void HandleEnemyPortal();
+
 	// Push state (accessed by GraphMovementComponent)
 	bool bBeingPushed = false;
 	bool bReturningToPatrol = false;
@@ -103,6 +113,10 @@ private:
 	// Portal state
 	EEnemyPortalState PortalState = EEnemyPortalState::None;
 
+	// Empêche le re-trigger de construction de portail quand l'ennemi arrive
+	// sur la node liée (qui est aussi de type EnemyPortal) après avoir traversé
+	bool bJustCrossedPortal = false;
+
 	// Rotation
 	bool bIsRotating = false;
 	FRotator NextRotation;
@@ -118,9 +132,15 @@ private:
 	int32 GetNextNodeID();
 	
 	// Portal handling
-	void HandleEnemyPortal();
+	
 	void BuildPortal();
 	void CrossPortal();
+
+	// Overlap callback for detection collision (kills player on overlap, regardless of world)
+	UFUNCTION()
+	void OnDetectionOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
+		bool bFromSweep, const FHitResult& SweepResult);
 	
 	
 	

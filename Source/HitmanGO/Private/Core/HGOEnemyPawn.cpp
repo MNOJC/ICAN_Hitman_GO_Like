@@ -18,6 +18,14 @@ AHGOEnemyPawn::AHGOEnemyPawn()
 	EnemyMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EnemyMeshComponent"));
 	EnemyMeshComponent->SetupAttachment(SceneRoot);
 
+	// Detection collision : tue le joueur s'il marche sur la même case, même si l'ennemi est invisible
+	DetectionCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("DetectionCollision"));
+	DetectionCollision->SetupAttachment(SceneRoot);
+	DetectionCollision->SetBoxExtent(FVector(40.f, 40.f, 40.f));
+	DetectionCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	DetectionCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
+	DetectionCollision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+
 	GraphMovementComponent = CreateDefaultSubobject<UHGOGraphMovementComponent>(TEXT("GraphMovementComponent"));
 }
 
@@ -27,6 +35,9 @@ void AHGOEnemyPawn::BeginPlay()
 	Super::BeginPlay();
 	
 	InitEnemyPosition();
+
+	// Binder l'overlap pour tuer le joueur quand il entre sur la même case (peu importe le monde)
+	DetectionCollision->OnComponentBeginOverlap.AddDynamic(this, &AHGOEnemyPawn::OnDetectionOverlapBegin);
 	
 	// S'abonner au changement de monde du joueur
 	if (UWorld* World = GetWorld())
@@ -169,10 +180,20 @@ void AHGOEnemyPawn::ExecuteEnemyMove()
 		*UEnum::GetValueAsString(GraphMovementComponent->GetCurrentNode()->NodeData.NodeType));
 	
 	// Vérifier si on est sur un portail ennemi
+	// Si on vient juste de le traverser, on skip pour éviter la boucle
 	if (GraphMovementComponent->GetCurrentNode()->NodeData.NodeType == ENodeType::EnemyPortal)
 	{
-		HandleEnemyPortal();
-		return;
+		if (bJustCrossedPortal)
+		{
+			bJustCrossedPortal = false;
+			GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Purple,
+				TEXT("[Enemy] On portal node but just crossed - moving normally"));
+		}
+		else
+		{
+			HandleEnemyPortal();
+			return;
+		}
 	}
 
 	// Mouvement normal
@@ -394,6 +415,14 @@ int32 AHGOEnemyPawn::GetNextNodeID()
 	return MovementPathNodeIDs[NextIndex];
 }
 
+void AHGOEnemyPawn::HandlePortalOnArrival()
+{
+	// L'ennemi vient d'arriver sur la tuile portail ce tour-ci via un mouvement normal.
+	// On construit le portail immédiatement — le tour suivant il traversera.
+	UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Arrived at portal - building portal this turn"));
+	BuildPortal();
+}
+
 void AHGOEnemyPawn::HandleEnemyPortal()
 {
 	switch (PortalState)
@@ -439,84 +468,58 @@ void AHGOEnemyPawn::BuildPortal()
 void AHGOEnemyPawn::CrossPortal()
 {
 	UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Crossing portal to other world"));
-	
-	// Changer de monde
-	bInUpsideDownWorld = !bInUpsideDownWorld;
-	
-	// Trouver la node liée dans l'autre monde
-	AHGOTacticalLevelGenerator* Generator = nullptr;
-	for (TActorIterator<AHGOTacticalLevelGenerator> GeneratorItr(GetWorld()); GeneratorItr; ++GeneratorItr)
+
+	UHGONodeGraphComponent* CurrentPortalNode = GraphMovementComponent->GetCurrentNode();
+	if (!CurrentPortalNode)
 	{
-		Generator = *GeneratorItr;
+		UE_LOG(LogTemp, Error, TEXT("[EnemyPawn] CrossPortal: no current node!"));
+		return;
+	}
+
+	int32 LinkedID = CurrentPortalNode->NodeData.LinkedUpsideDownNodeID;
+	if (LinkedID < 0)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[EnemyPawn] CrossPortal: no LinkedUpsideDownNodeID on current portal node!"));
+		return;
+	}
+
+	// Trouver l'autre node EnemyPortal dans l'autre monde qui partage le même LinkedUpsideDownNodeID
+	AHGOTacticalLevelGenerator* Generator = nullptr;
+	for (TActorIterator<AHGOTacticalLevelGenerator> It(GetWorld()); It; ++It)
+	{
+		Generator = *It;
 		break;
 	}
 
 	if (!Generator)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[EnemyPawn] No level generator found for portal crossing!"));
+		UE_LOG(LogTemp, Error, TEXT("[EnemyPawn] CrossPortal: no level generator!"));
 		return;
 	}
 
-	int32 LinkedNodeID = GraphMovementComponent->GetCurrentNode()->NodeData.LinkedUpsideDownNodeID;
-	
-	if (LinkedNodeID < 0)
-	{
-		UE_LOG(LogTemp, Error, TEXT("[EnemyPawn] No linked node for this portal!"));
-		return;
-	}
+	// Monde cible = l'opposé du monde actuel
+	bool bTargetWorld = !bInUpsideDownWorld;
 
-	// Trouver la node correspondante dans l'autre monde
-	UHGONodeGraphComponent* LinkedNode = nullptr;
+	UHGONodeGraphComponent* LinkedPortalNode = nullptr;
 	for (UHGONodeGraphComponent* NodeComp : Generator->NodeGraphs)
 	{
 		if (!NodeComp) continue;
-		
-		// La node liée est celle dont le NodeID correspond au LinkedUpsideDownNodeID
-		// ET qui est dans le monde cible (après le changement de bInUpsideDownWorld)
-		if (NodeComp->NodeData.LinkedUpsideDownNodeID == LinkedNodeID && 
-			NodeComp->NodeData.bIsUpsideDownNode == bInUpsideDownWorld)
+
+		// Même LinkedUpsideDownNodeID, dans le monde cible, et c'est un portail ennemi
+		if (NodeComp->NodeData.LinkedUpsideDownNodeID == LinkedID
+			&& NodeComp->NodeData.bIsUpsideDownNode == bTargetWorld
+			&& NodeComp->NodeData.NodeType == ENodeType::EnemyPortal)
 		{
-			LinkedNode = NodeComp;
+			LinkedPortalNode = NodeComp;
 			break;
 		}
 	}
 
-	if (!LinkedNode)
+	if (!LinkedPortalNode)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[EnemyPawn] Could not find linked node %d!"), LinkedNodeID);
-		return;
-	}
-
-	// Téléporter sur la node liée (même position physique)
-	GraphMovementComponent->SetCurrentNode(LinkedNode);
-	UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Crossed to node %d in %s world"), 
-		LinkedNodeID, bInUpsideDownWorld ? TEXT("UPSIDE-DOWN") : TEXT("NORMAL"));
-
-	OnEnemyPassThroughPortal();
-	
-	// IMPORTANT: Avancer dans le path pour pointer sur la node après le portail
-	// Car la node actuelle (LinkedNode) est au même endroit que la précédente
-	AdvancePathIndex();
-	
-	// Réinitialiser l'état du portail
-	PortalState = EEnemyPortalState::None;
-	
-	// Maintenant, déplacer vers la VRAIE prochaine node (mouvement visuel)
-	int32 NextNodeID = GetNextNodeID();
-	
-	UE_LOG(LogTemp, Log, TEXT("[EnemyPawn] Moving to next node after portal: %d"), NextNodeID);
-	
-	// Démarrer le mouvement vers cette prochaine node
-	if (GraphMovementComponent->TryMoveToNodeID(NextNodeID))
-	{
-		UE_LOG(LogTemp, Log, TEXT("[EnemyPawn] Successfully started move to node %d after portal crossing"), NextNodeID);
-		AdvancePathIndex();
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("[EnemyPawn] Failed to move to node %d after portal"), NextNodeID);
-		
-		// Si le mouvement échoue, on termine quand même le tour
+		UE_LOG(LogTemp, Error, TEXT("[EnemyPawn] CrossPortal: could not find linked portal node with LinkedID=%d in world %s"),
+			LinkedID, bTargetWorld ? TEXT("UPSIDE-DOWN") : TEXT("NORMAL"));
+		// Terminer le tour proprement
 		if (UWorld* World = GetWorld())
 		{
 			if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
@@ -524,6 +527,38 @@ void AHGOEnemyPawn::CrossPortal()
 				TurnManager->RegisterActionStarted();
 				TurnManager->RegisterActionCompleted();
 			}
+		}
+		return;
+	}
+
+	// Changer de monde et téléporter sur la node liée
+	bInUpsideDownWorld = bTargetWorld;
+	GraphMovementComponent->bInUpsideDownWorld = bTargetWorld;
+	GraphMovementComponent->SetCurrentNode(LinkedPortalNode);
+
+	UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Teleported to portal node %d in %s world — will move normally next turn"),
+		LinkedPortalNode->NodeData.NodeID, bInUpsideDownWorld ? TEXT("UPSIDE-DOWN") : TEXT("NORMAL"));
+
+	OnEnemyPassThroughPortal();
+
+	// Réinitialiser l'état du portail
+	PortalState = EEnemyPortalState::None;
+
+	// Marquer la traversée pour skip le re-trigger du portail au prochain tour
+	bJustCrossedPortal = true;
+
+	// AdvancePathIndex : CurrentPathIndex doit maintenant pointer sur la node APRÈS la node portail liée
+	// (on vient d'arriver sur la node portail de l'autre monde, la prochaine étape est la node suivante du pattern)
+	AdvancePathIndex();
+	CheckAndKillPlayer();
+
+	// Ce tour se termine ici — le mouvement vers la prochaine node se fera au tour suivant
+	if (UWorld* World = GetWorld())
+	{
+		if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
+		{
+			TurnManager->RegisterActionStarted();
+			TurnManager->RegisterActionCompleted();
 		}
 	}
 }
@@ -545,6 +580,19 @@ void AHGOEnemyPawn::UpdateVisibilityForWorld(bool bPlayerInUpsideDownWorld)
 bool AHGOEnemyPawn::OnEnemyPassThroughPortal_Implementation()
 {
 	return bInUpsideDownWorld;
+}
+
+// Overlap sur la DetectionCollision : tue le joueur s'il est sur la même case physique.
+// Pas de vérification de monde — l'ennemi est juste invisible dans l'autre monde,
+// mais sa présence physique reste dangereuse.
+void AHGOEnemyPawn::OnDetectionOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	AHGOPlayerPawn* Player = Cast<AHGOPlayerPawn>(OtherActor);
+	if (!Player)
+		return;
+
+	UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Player walked onto the same tile! Killing player (world-agnostic overlap)."));
+	Player->KillPlayer(true);
 }
 
 bool AHGOEnemyPawn::CheckAndKillPlayer()
@@ -586,7 +634,7 @@ bool AHGOEnemyPawn::CheckAndKillPlayer()
 		UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Player detected in vision! Killing player..."));
 		
 		// Tuer le joueur directement
-		Player->KillPlayer();
+		Player->KillPlayer(false);
 		
 		
 		return true;
