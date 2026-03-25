@@ -74,3 +74,15 @@ Plugins/**/Intermediate/*
 
 # Cache files for the editor to use
 DerivedDataCache/*
+
+/Content/FMOD/Banks
+/Content/FMOD/Buses
+/Content/FMOD/Events
+/Content/FMOD/Ports
+/Content/FMOD/PrivateIntegrationData
+/Content/FMOD/Reverb
+/Content/FMOD/Snapshots
+/Content/FMOD/VCAs
+/Plugins/FMODStudio/Docs
+/Plugins/FMODStudio/Intermediate
+/Plugins/FMODStudio/Ressources
