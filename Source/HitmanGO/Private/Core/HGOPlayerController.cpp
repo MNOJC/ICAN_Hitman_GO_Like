@@ -160,7 +160,7 @@ void AHGOPlayerController::PawnReleased(const FInputActionValue& Value)
 		}
 
 		GetPawn()->SetActorLocation(StartPawnLocationBeforeGrab);
-		GetPawn()->SetActorRotation(FRotator::ZeroRotator);
+		GetPawn()->SetActorRotation(FRotator(0,GetPawn()->GetActorRotation().Yaw, 0)); // Réorienter vers la caméra
 	}
 
 	bPawnSelected = false;
@@ -184,19 +184,23 @@ void AHGOPlayerController::PawnGrabbed(const FInputActionValue& Value)
 			switch (SwipeDirection)
 			{
 			case ENodeDirection::North:
-				TiltRotation.Pitch = -MaxTiltAngle; 
+				TiltRotation.Pitch = MaxTiltAngle;
+				TiltRotation.Yaw = 180.0f; // Faire face à la direction du swipe
 				break;
                     
 			case ENodeDirection::South:
-				TiltRotation.Pitch = MaxTiltAngle; 
+				TiltRotation.Pitch = MaxTiltAngle;
+				TiltRotation.Yaw = 0.0f; // Faire face à la direction du swipe
 				break;
                     
 			case ENodeDirection::East:
-				TiltRotation.Roll = MaxTiltAngle; 
+				TiltRotation.Pitch = MaxTiltAngle;
+				TiltRotation.Yaw = -90.0f; // Faire face à la direction du swipe
 				break;
                     
 			case ENodeDirection::West:
-				TiltRotation.Roll = -MaxTiltAngle;
+				TiltRotation.Pitch = MaxTiltAngle;
+				TiltRotation.Yaw = 90.0f; // Faire face à la direction du swipe
 				break;
                     
 			default:
@@ -204,6 +208,7 @@ void AHGOPlayerController::PawnGrabbed(const FInputActionValue& Value)
 			}
 			
 		}
+		
         
 		GetPawn()->SetActorRotation(FMath::RInterpTo(GetPawn()->GetActorRotation(), TiltRotation, GetWorld()->GetDeltaSeconds(), 10.0f));
 	}

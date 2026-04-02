@@ -350,6 +350,7 @@ void AHGOEnemyPawn::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	UpdateEnemyRotation(DeltaTime);
+	UpdatePortalDive(DeltaTime);
 }
 
 // Called to bind functionality to input
@@ -435,7 +436,7 @@ void AHGOEnemyPawn::HandleEnemyPortal()
 			
 		case EEnemyPortalState::Building:
 			// Deuxième tour : traverser le portail
-			CrossPortal();
+			StartPortalDive();
 			break;
 			
 		default:
@@ -596,6 +597,51 @@ void AHGOEnemyPawn::OnDetectionOverlapBegin(UPrimitiveComponent* OverlappedCompo
 
 	UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Player walked onto the same tile! Killing player (world-agnostic overlap)."));
 	Player->KillPlayer(true);
+}
+
+void AHGOEnemyPawn::StartPortalDive()
+{
+	if (bIsPortalDiving)
+	{
+		return;
+	}
+
+	// Fallback sécurité : si durée trop faible, garder le comportement instantané
+	if (PortalDiveDuration <= KINDA_SMALL_NUMBER)
+	{
+		CrossPortal();
+		return;
+	}
+
+	bIsPortalDiving = true;
+	PortalDiveElapsed = 0.0f;
+	PortalDiveStartLocation = GetActorLocation();
+	PortalDiveTargetLocation = PortalDiveStartLocation + FVector(0.0f, 0.0f, PortalDiveOffsetZ);
+
+	UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Starting portal dive transition"));
+}
+
+void AHGOEnemyPawn::UpdatePortalDive(float DeltaTime)
+{
+	if (!bIsPortalDiving)
+	{
+		return;
+	}
+
+	PortalDiveElapsed += DeltaTime;
+
+	const float Alpha = FMath::Clamp(PortalDiveElapsed / PortalDiveDuration, 0.0f, 1.0f);
+	const float SmoothedAlpha = FMath::InterpEaseInOut(0.0f, 1.0f, Alpha, 2.0f);
+
+	const FVector NewLocation = FMath::Lerp(PortalDiveStartLocation, PortalDiveTargetLocation, SmoothedAlpha);
+	SetActorLocation(NewLocation);
+
+	if (Alpha >= 1.0f)
+	{
+		bIsPortalDiving = false;
+		
+		CrossPortal();
+	}
 }
 
 bool AHGOEnemyPawn::CheckAndKillPlayer()

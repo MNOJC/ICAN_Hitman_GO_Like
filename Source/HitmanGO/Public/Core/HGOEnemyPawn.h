@@ -66,6 +66,13 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Path")
 	FRotator DefaultRotation = FRotator::ZeroRotator;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Portal")
+	float PortalDiveOffsetZ = -50.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Portal")
+	float PortalDiveDuration = 1.0f;
+	
 
 	// Execute the enemy's movement to the next node in path
 	UFUNCTION(BlueprintCallable, Category = "Enemy")
@@ -134,6 +141,7 @@ private:
 	void AdvancePathIndex();
 	int32 GetNextNodeID();
 	
+	
 	// Portal handling
 	
 	void BuildPortal();
@@ -141,10 +149,15 @@ private:
 
 	// Overlap callback for detection collision (kills player on overlap, regardless of world)
 	UFUNCTION()
-	void OnDetectionOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
-		bool bFromSweep, const FHitResult& SweepResult);
-	
+	void OnDetectionOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+	bool bIsPortalDiving = false;
+	float PortalDiveElapsed = 0.0f;
+	FVector PortalDiveStartLocation = FVector::ZeroVector;
+	FVector PortalDiveTargetLocation = FVector::ZeroVector;
+
+	void StartPortalDive();
+	void UpdatePortalDive(float DeltaTime);
 	
 	
 };

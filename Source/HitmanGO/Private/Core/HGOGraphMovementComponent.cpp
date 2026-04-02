@@ -4,6 +4,7 @@
 #include "Core/HGOTacticalTurnManager.h"
 #include "EngineUtils.h"
 #include "Core/HGOEnemyPawn.h"
+#include "Core/HGOPlayerPawn.h"
 #include "Graph/HGOTacticalLevelGenerator.h"
 
 // Sets default values for this component's properties
@@ -15,7 +16,6 @@ UHGOGraphMovementComponent::UHGOGraphMovementComponent()
 	bIsMoving = false;
 	MovementProgress = 0.0f;
 }
-
 
 bool UHGOGraphMovementComponent::TryMoveInDirection(ENodeDirection Direction)
 {
@@ -136,7 +136,6 @@ bool UHGOGraphMovementComponent::TryMoveToNodeID(int32 TargetNodeID)
 
 void UHGOGraphMovementComponent::SetCurrentNode(UHGONodeGraphComponent* NewNode)
 {
-	
 	if (NewNode)
 	{
 		CurrentNode = NewNode;
@@ -260,8 +259,6 @@ bool UHGOGraphMovementComponent::IsNodeInAlignedDirection(UHGONodeGraphComponent
 	return false;
 }
 
-
-
 void UHGOGraphMovementComponent::SwitchWorldGraph()
 {
 	UE_LOG(LogTemp, Log, TEXT("[WorldSwitch] Player triggered world switch"));
@@ -309,9 +306,6 @@ void UHGOGraphMovementComponent::SwitchWorldGraph()
 		return;
 	}
 
-	// NOUVELLE LOGIQUE: Démarrer la séquence d'animation
-	// Au lieu de faire le switch directement, on bind aux delegates
-	
 	// Bind au delegate de fin de séquence
 	if (!Generator->OnSwitchWorldAnimCompleted.IsAlreadyBound(this, &UHGOGraphMovementComponent::OnWorldSwitchAnimationComplete))
 	{
@@ -323,10 +317,8 @@ void UHGOGraphMovementComponent::SwitchWorldGraph()
 
 	// Démarrer la séquence d'animation
 	Generator->StartWorldSwitchSequence();
-	
 
 	// Le reste (broadcast OnSwitchWorldGraph, téléportation) se fera dans OnWorldSwitchAnimationComplete
-
 	if (bInUpsideDownWorld)
 	{
 		UE_LOG(LogTemp, Log, TEXT("Switching to NORMAL world"));
@@ -351,81 +343,35 @@ void UHGOGraphMovementComponent::OnWorldSwitchAnimationComplete()
 		return;
 	}
 
-	// Trouver le générateur
-	AHGOTacticalLevelGenerator* Generator = nullptr;
-	for (TActorIterator<AHGOTacticalLevelGenerator> GeneratorItr(GetWorld()); GeneratorItr; ++GeneratorItr)
-	{
-		Generator = *GeneratorItr;
-		break;
-	}
-
-	if (!Generator)
-		return;
-
-	// Préparer les listes de nodes/edges
-	TArray<UHGONodeGraphComponent*> NormalNodes;
-	TArray<UHGONodeGraphComponent*> UpsideDownNodes;
-	TArray<UHGOEdgeGraphComponent*> NormalEdges;
-	TArray<UHGOEdgeGraphComponent*> UpsideDownEdges;
-
-	// Séparer les nodes
-	for (UHGONodeGraphComponent* NodeComp : Generator->NodeGraphs)
-	{
-		if (!NodeComp) continue;
-
-		if (NodeComp->NodeData.bIsUpsideDownNode)
-		{
-			UpsideDownNodes.Add(NodeComp);
-		}
-		else
-		{
-			NormalNodes.Add(NodeComp);
-		}
-	}
-
-	// Séparer les edges
-	for (UHGOEdgeGraphComponent* EdgeComp : Generator->EdgeGraphs)
-	{
-		if (!EdgeComp) continue;
-
-		bool bSourceIsUpsideDown = false;
-		bool bTargetIsUpsideDown = false;
-
-		for (UHGONodeGraphComponent* NodeComp : Generator->NodeGraphs)
-		{
-			if (!NodeComp) continue;
-
-			if (NodeComp->NodeData.NodeID == EdgeComp->EdgeData.SourceNodeID)
-			{
-				bSourceIsUpsideDown = NodeComp->NodeData.bIsUpsideDownNode;
-			}
-			if (NodeComp->NodeData.NodeID == EdgeComp->EdgeData.TargetNodeID)
-			{
-				bTargetIsUpsideDown = NodeComp->NodeData.bIsUpsideDownNode;
-			}
-		}
-
-		if (bSourceIsUpsideDown || bTargetIsUpsideDown)
-		{
-			UpsideDownEdges.Add(EdgeComp);
-		}
-		else
-		{
-			NormalEdges.Add(EdgeComp);
-		}
-	}
-
 	// Téléporter le joueur
 	CurrentNode = CachedLinkedNode;
 	GetOwner()->SetActorLocation(CachedLinkedNode->GetComponentLocation());
 
 	UE_LOG(LogTemp, Log, TEXT("Switched to node ID: %d"), CachedLinkedNode->NodeData.NodeID);
 
+	// Garder le broadcast au cas où quelque chose l'écoute
+	OnMovementCompleted.Broadcast(CurrentNode->NodeData.NodeID);
+
 	// Clear le cache
 	CachedLinkedNode = nullptr;
 
-	// Compléter le mouvement
-	NotifyMovementCompleted();
+	// Vérifier si un ennemi peut voir le joueur dans le nouveau monde
+	if (AHGOPlayerPawn* Player = Cast<AHGOPlayerPawn>(GetOwner()))
+	{
+		for (TActorIterator<AHGOEnemyPawn> EnemyItr(GetWorld()); EnemyItr; ++EnemyItr)
+		{
+			AHGOEnemyPawn* Enemy = *EnemyItr;
+			if (Enemy && Enemy->CheckAndKillPlayer())
+			{
+				break;
+			}
+		}
+	}
+
+	// L'animation réelle est finie.
+	// Le passage au tour ennemi ne se fera que quand le délai mini sera aussi écoulé.
+	bWorldSwitchAnimationCompleted = true;
+	TryCompletePendingWorldSwitch();
 }
 
 void UHGOGraphMovementComponent::UpdateMovement(float DeltaTime)
@@ -444,24 +390,8 @@ void UHGOGraphMovementComponent::UpdateMovement(float DeltaTime)
 
 		UE_LOG(LogTemp, Log, TEXT("[Movement] Arrived at node %d"), TargetNode->NodeData.NodeID);
 
-		// Check for PlayerPortal BEFORE notifying turn system
-		/*if (TargetNode->NodeData.NodeType == ENodeType::PlayerPortal)
-		{
-			UE_LOG(LogTemp, Log, TEXT("[Movement] Player reached PlayerPortal node!"));
-			
-			// Mettre à jour CurrentNode AVANT le switch de monde
-			CurrentNode = TargetNode;
-			TargetNode = nullptr;
-			
-			SwitchWorldGraph();
-		} 
-		else*/
-		//{
-			// Notifier la fin du mouvement (CurrentNode sera mis à jour dans cette fonction)
-			NotifyMovementCompleted();
-		// Reset du flag de switch (au cas où)
-		//}
-		
+		// Notifier la fin du mouvement
+		NotifyMovementCompleted();
 	}
 	else
 	{
@@ -472,8 +402,7 @@ void UHGOGraphMovementComponent::UpdateMovement(float DeltaTime)
 		
 		float ArcHeight = 5.0f;
 			
-			// Calculer la hauteur en utilisant une courbe parabolique
-			// sin donne une courbe douce qui monte puis redescend
+		// Calculer la hauteur en utilisant une courbe parabolique
 		float HeightOffset = FMath::Sin(MovementProgress * PI) * ArcHeight;
 			
 		NewPos.Z += HeightOffset;
@@ -513,7 +442,6 @@ void UHGOGraphMovementComponent::NotifyMovementStarted()
 		if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
 		{
 			TurnManager->RegisterActionStarted();
-			
 		}
 	}
 }
@@ -530,11 +458,10 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 	}
 
 	// CAS 1: C'est un ENNEMI qui vient de bouger
-	if(AHGOEnemyPawn* EnemyPawn = Cast<AHGOEnemyPawn>(GetOwner()))
+	if (AHGOEnemyPawn* EnemyPawn = Cast<AHGOEnemyPawn>(GetOwner()))
 	{
-		if (!EnemyPawn) return;
-
 		EnemyPawn->CheckAndKillPlayer();
+
 		// SOUS-CAS 1A: Ennemi en train d'être poussé
 		if (EnemyPawn->bBeingPushed)
 		{
@@ -579,7 +506,6 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 				}
 				
 				// Push terminé, on ne change pas de tour (c'est toujours au joueur)
-				// On ne fait rien, le joueur peut continuer à jouer
 				return;
 			}
 		}
@@ -607,17 +533,16 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 	// CAS 2: C'est le JOUEUR qui vient de bouger
 	if (AHGOPlayerPawn* Player = Cast<AHGOPlayerPawn>(GetOwner()))
 	{
-		if(CurrentNode->NodeData.NodeType != ENodeType::PlayerPortal)
+		if (CurrentNode->NodeData.NodeType != ENodeType::PlayerPortal)
 		{
-			bSwitchLastRound = false; // Réinitialiser le flag de switch si on n'est pas sur un portail (pour permettre les futurs switches)
+			bSwitchLastRound = false; // Réinitialiser le flag si on n'est pas sur un portail
 		}
 		
 		// PRIORITÉ 1: Vérifier si le joueur a atteint le Goal
-		if (CurrentNode && CurrentNode->NodeData.NodeType == ENodeType::Goal)
+		if (CurrentNode->NodeData.NodeType == ENodeType::Goal)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[Movement] Player reached GOAL! Level complete!"));
 			
-			// Compléter le niveau
 			Player->CompleteLevel();
 			
 			// Terminer le tour
@@ -649,15 +574,30 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 			}
 		}
 
-		if (CurrentNode && CurrentNode->NodeData.NodeType == ENodeType::PlayerPortal && !bSwitchLastRound)
+		if (CurrentNode->NodeData.NodeType == ENodeType::PlayerPortal && !bSwitchLastRound)
 		{
 			UE_LOG(LogTemp, Log, TEXT("[Movement] Player reached PlayerPortal node!"));
-			
-			// Mettre à jour CurrentNode AVANT le switch de monde
+
 			bSwitchLastRound = true;
-			GEngine->AddOnScreenDebugMessage(1, 20.0f, FColor::Emerald, "SET TO TRUE",false);// Marquer que le switch a été déclenché ce tour-ci
+
+			// On garde le tour joueur "ouvert" pendant toute la transition
+			bWaitingForWorldSwitchCompletion = true;
+			bWorldSwitchAnimationCompleted = false;
+			WorldSwitchDelayRemaining = WorldSwitchTurnDelay;
+
+			GEngine->AddOnScreenDebugMessage(
+				1,
+				5.0f,
+				FColor::Emerald,
+				FString::Printf(TEXT("World switch delay started: %.2fs"), WorldSwitchTurnDelay),
+				false
+			);
+
 			SwitchWorldGraph();
-		} 
+
+			// IMPORTANT : ne pas finir l'action maintenant
+			return;
+		}
 	}
 	
 	// Aucun événement spécial, compléter l'action normalement
@@ -670,14 +610,11 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 	}
 }
 
-
-
 // Called when the game starts
 void UHGOGraphMovementComponent::BeginPlay()
 {
 	Super::BeginPlay();
 }
-
 
 // Called every frame
 void UHGOGraphMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -689,13 +626,65 @@ void UHGOGraphMovementComponent::TickComponent(float DeltaTime, ELevelTick TickT
 		UpdateMovement(DeltaTime);
 	}
 
-	if(AHGOPlayerPawn* Player = Cast<AHGOPlayerPawn>(GetOwner()))
+	UpdateWorldSwitchWait(DeltaTime);
+
+	if (AHGOPlayerPawn* Player = Cast<AHGOPlayerPawn>(GetOwner()))
 	{
 		GEngine->AddOnScreenDebugMessage(
-	1,
-	0.0f,
-	FColor::Cyan,
-	FString::Printf(TEXT("bSwitchLastRound: %s"), bSwitchLastRound ? TEXT("TRUE") : TEXT("FALSE"))
-	);
+			1,
+			0.0f,
+			FColor::Cyan,
+			FString::Printf(TEXT("bSwitchLastRound: %s"), bSwitchLastRound ? TEXT("TRUE") : TEXT("FALSE"))
+		);
+	}
+}
+
+void UHGOGraphMovementComponent::UpdateWorldSwitchWait(float DeltaTime)
+{
+	if (!bWaitingForWorldSwitchCompletion)
+	{
+		return;
+	}
+
+	if (WorldSwitchDelayRemaining > 0.0f)
+	{
+		WorldSwitchDelayRemaining -= DeltaTime;
+	}
+
+	TryCompletePendingWorldSwitch();
+}
+
+void UHGOGraphMovementComponent::TryCompletePendingWorldSwitch()
+{
+	if (!bWaitingForWorldSwitchCompletion)
+	{
+		return;
+	}
+
+	// On attend :
+	// 1) la vraie fin de l'anim/séquence
+	// 2) le délai mini configuré
+	if (!bWorldSwitchAnimationCompleted)
+	{
+		return;
+	}
+
+	if (WorldSwitchDelayRemaining > 0.0f)
+	{
+		return;
+	}
+
+	bWaitingForWorldSwitchCompletion = false;
+	bWorldSwitchAnimationCompleted = false;
+	WorldSwitchDelayRemaining = 0.0f;
+
+	UE_LOG(LogTemp, Log, TEXT("[WorldSwitch] Transition fully completed, ending player action"));
+
+	if (UWorld* World = GetWorld())
+	{
+		if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
+		{
+			TurnManager->RegisterActionCompleted();
+		}
 	}
 }

@@ -33,6 +33,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Movement")
 	FOnMovementCompleted OnMovementCompleted;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "World Switch")
+	float WorldSwitchTurnDelay = 1.0f;
+
 	
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	bool TryMoveInDirection(ENodeDirection Direction);
@@ -59,6 +62,8 @@ public:
 	UFUNCTION()
 	void OnWorldSwitchAnimationComplete();
 
+	
+
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
@@ -82,5 +87,11 @@ public:
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
+	bool bWaitingForWorldSwitchCompletion = false;
+	bool bWorldSwitchAnimationCompleted = false;
+	float WorldSwitchDelayRemaining = 0.0f;
+
+	void UpdateWorldSwitchWait(float DeltaTime);
+	void TryCompletePendingWorldSwitch();
 		
 };
