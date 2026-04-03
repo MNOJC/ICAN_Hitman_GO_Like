@@ -670,23 +670,30 @@ bool AHGOEnemyPawn::CheckAndKillPlayer()
 		return false;
 	}
 
-	// Vérifier si le joueur est dans le même monde
+	// Vérifier même monde
 	if (bInUpsideDownWorld != Player->GraphMovementComponent->bInUpsideDownWorld)
 	{
-		return false; // Le joueur est dans un autre monde, on ne peut pas le voir
+		return false;
 	}
 
-	// Vérifier si le joueur est dans le champ de vision (devant, 1 node de distance, connecté)
+	// CAS 1 : l'ennemi est déjà arrivé sur la case du joueur
+	if (GraphMovementComponent->GetCurrentNode() == PlayerNode)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Reached player tile. Killing player."));
+		bKillMoveInProgress = false;
+		Player->KillPlayer(false);
+		return true;
+	}
+
+	// CAS 2 : le joueur est adjacent -> commencer le déplacement de kill
 	if (GraphMovementComponent->IsNodeAdjacent(PlayerNode))
 	{
-		GraphMovementComponent->TryMoveToNodeID(PlayerNode->NodeData.NodeID); // Se tourner vers le joueur
-		UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Player detected in vision! Killing player..."));
-		
-		// Tuer le joueur directement
-		Player->KillPlayer(false);
-		
-		
-		return true;
+		if (GraphMovementComponent->TryMoveToNodeID(PlayerNode->NodeData.NodeID))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Player detected. Starting kill move."));
+			bKillMoveInProgress = true;
+			return true;
+		}
 	}
 
 	return false;

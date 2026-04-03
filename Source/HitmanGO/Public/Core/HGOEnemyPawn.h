@@ -110,6 +110,7 @@ public:
 	// Push state (accessed by GraphMovementComponent)
 	bool bBeingPushed = false;
 	bool bReturningToPatrol = false;
+	bool bKillMoveInProgress = false;
 	TArray<int32> PushPathNodeIDs;
 
 private:

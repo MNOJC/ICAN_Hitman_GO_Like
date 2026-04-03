@@ -460,7 +460,22 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 	// CAS 1: C'est un ENNEMI qui vient de bouger
 	if (AHGOEnemyPawn* EnemyPawn = Cast<AHGOEnemyPawn>(GetOwner()))
 	{
-		EnemyPawn->CheckAndKillPlayer();
+		if (!EnemyPawn) return;
+
+		// Si on vient de terminer un move de kill, on tue maintenant le joueur
+		// et on s'arrête ici pour éviter toute autre logique (rotation/patrol/etc.)
+		if (EnemyPawn->bKillMoveInProgress)
+		{
+			EnemyPawn->CheckAndKillPlayer();
+			return;
+		}
+
+		// Si un joueur est adjacent, on démarre le move de kill
+		// et on stoppe le reste de la logique ennemi
+		if (EnemyPawn->CheckAndKillPlayer())
+		{
+			return;
+		}
 
 		// SOUS-CAS 1A: Ennemi en train d'être poussé
 		if (EnemyPawn->bBeingPushed)
