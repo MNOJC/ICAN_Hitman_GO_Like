@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "HGOGraphMovementComponent.h"
 #include "Components/BoxComponent.h"
+#include "FMODEvent.h"
+#include "FMODBlueprintStatics.h"
 #include "GameFramework/Pawn.h"
 #include "Core/HGOPlayerPawn.h"
 #include "HGOEnemyPawn.generated.h"
@@ -45,6 +47,12 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Enemy")
 	UHGOGraphMovementComponent* GraphMovementComponent;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Enemy|Detection")
+	UFMODEvent* PortalCreateSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Enemy|Detection")
+	UFMODEvent* EnemyUpSound;
 
 protected:
 	// Called when the game starts or when spawned

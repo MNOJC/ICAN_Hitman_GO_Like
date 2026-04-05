@@ -8,6 +8,8 @@
 #include "InputCoreTypes.h"
 #include "EngineUtils.h"
 #include "Core/HGOGameMode.h"
+#include "FMODEvent.h"
+#include "FMODBlueprintStatics.h"
 #include "HGOGraphMovementComponent.h"
 #include "HGOPlayerPawn.generated.h"
 
@@ -48,6 +50,15 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components")
 	UHGOGraphMovementComponent* GraphMovementComponent;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Player|Ability")
+	UFMODEvent* AbilitySound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Player|Ability")
+	UFMODEvent* AbilityReadySound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Player|Ability")
+	UFMODEvent* PlayerPawnGrabSound;
 
 protected:
 	// Called when the game starts or when spawned

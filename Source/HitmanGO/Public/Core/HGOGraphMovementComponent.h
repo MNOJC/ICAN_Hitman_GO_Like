@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "FMODEvent.h"
+#include "FMODBlueprintStatics.h"
 #include "Components/ActorComponent.h"
 #include "Graph/HGONodeGraphComponent.h"
 #include "Graph/HGOEdgeGraphComponent.h"
@@ -62,7 +64,14 @@ public:
 	UFUNCTION()
 	void OnWorldSwitchAnimationComplete();
 
-	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Player|Ability")
+	UFMODEvent* PlayerPawnMovementCompleteSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Player|Ability")
+	UFMODEvent* EnemyPawnMovementCompleteSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Player|Ability")
+	UFMODEvent* PawnSlidingSound;
 
 protected:
 	// Called when the game starts

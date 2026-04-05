@@ -98,6 +98,7 @@ void AHGOEnemyPawn::InitEnemyPosition()
 
 void AHGOEnemyPawn::ExecuteEnemyMove()
 {
+	UFMODBlueprintStatics::PlayEvent2D(GetWorld(), EnemyUpSound, true);
 	if (MovementPathNodeIDs.Num() == 0)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[EnemyPawn] No movement path defined!"));
@@ -457,7 +458,7 @@ void AHGOEnemyPawn::BuildPortal()
 		if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
 		{
 			TurnManager->RegisterActionStarted();
-			
+			UFMODBlueprintStatics::PlayEvent2D(GetWorld(), PortalCreateSound, true);
 			// Lancer la rotation vers la prochaine node après le portail
 			// Cela appellera automatiquement RegisterActionCompleted() à la fin
 			ExecuteEnemyRotation();

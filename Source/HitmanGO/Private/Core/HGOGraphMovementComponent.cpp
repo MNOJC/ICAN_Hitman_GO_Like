@@ -441,6 +441,7 @@ void UHGOGraphMovementComponent::NotifyMovementStarted()
 	{
 		if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
 		{
+			UFMODBlueprintStatics::PlayEvent2D(GetWorld(), PawnSlidingSound, true);
 			TurnManager->RegisterActionStarted();
 		}
 	}
@@ -460,6 +461,7 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 	// CAS 1: C'est un ENNEMI qui vient de bouger
 	if (AHGOEnemyPawn* EnemyPawn = Cast<AHGOEnemyPawn>(GetOwner()))
 	{
+		UFMODBlueprintStatics::PlayEvent2D(GetWorld(), EnemyPawnMovementCompleteSound, true);
 		if (!EnemyPawn) return;
 
 		// Si on vient de terminer un move de kill, on tue maintenant le joueur
@@ -548,6 +550,7 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 	// CAS 2: C'est le JOUEUR qui vient de bouger
 	if (AHGOPlayerPawn* Player = Cast<AHGOPlayerPawn>(GetOwner()))
 	{
+		UFMODBlueprintStatics::PlayEvent2D(GetWorld(), PlayerPawnMovementCompleteSound, true);
 		if (CurrentNode->NodeData.NodeType != ENodeType::PlayerPortal)
 		{
 			bSwitchLastRound = false; // Réinitialiser le flag si on n'est pas sur un portail
