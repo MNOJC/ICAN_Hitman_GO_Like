@@ -544,13 +544,13 @@ void AHGOEnemyPawn::CrossPortal()
 		return;
 	}
 
+	OnPortalCrossed.Broadcast(GraphMovementComponent->GetCurrentNode()->NodeData.NodeID);
+	
 	// Changer de monde et téléporter sur la node liée
 	bInUpsideDownWorld = bTargetWorld;
 	GraphMovementComponent->bInUpsideDownWorld = bTargetWorld;
 	GraphMovementComponent->SetCurrentNode(LinkedPortalNode);
-
-	const int32 CrossedPortalNodeID = LinkedPortalNode->NodeData.NodeID;
-	OnPortalCrossed.Broadcast(CrossedPortalNodeID);
+	
 
 	UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Teleported to portal node %d in %s world — will move normally next turn"),
 		LinkedPortalNode->NodeData.NodeID, bInUpsideDownWorld ? TEXT("UPSIDE-DOWN") : TEXT("NORMAL"));
