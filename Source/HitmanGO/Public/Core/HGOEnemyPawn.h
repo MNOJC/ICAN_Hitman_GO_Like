@@ -11,6 +11,9 @@
 #include "Core/HGOPlayerPawn.h"
 #include "HGOEnemyPawn.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPortalCreated, int32, PortalNodeID);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPortalCrossed, int32, PortalNodeID);
+
 UENUM(BlueprintType)
 enum class EPathFollowType : uint8
 {
@@ -53,6 +56,12 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Enemy|Detection")
 	UFMODEvent* EnemyUpSound;
+
+	UPROPERTY(BlueprintAssignable, Category = "Enemy|Portal")
+	FOnPortalCreated OnPortalCreated;
+
+	UPROPERTY(BlueprintAssignable, Category = "Enemy|Portal")
+	FOnPortalCrossed OnPortalCrossed;
 
 protected:
 	// Called when the game starts or when spawned

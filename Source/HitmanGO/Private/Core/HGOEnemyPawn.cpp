@@ -450,6 +450,14 @@ void AHGOEnemyPawn::BuildPortal()
 	UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Building portal - 1 turn used"));
 	
 	PortalState = EEnemyPortalState::Building;
+
+	if (GraphMovementComponent && GraphMovementComponent->GetCurrentNode())
+	{
+		const int32 CreatedPortalNodeID = GraphMovementComponent->GetCurrentNode()->NodeData.NodeID;
+		OnPortalCreated.Broadcast(CreatedPortalNodeID);
+
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] OnPortalCreated broadcast with node ID %d"), CreatedPortalNodeID);
+	}
 	
 	// La construction du portail consomme le tour
 	// On doit passer par ExecutingAction puis TransitioningTurn
@@ -540,6 +548,9 @@ void AHGOEnemyPawn::CrossPortal()
 	bInUpsideDownWorld = bTargetWorld;
 	GraphMovementComponent->bInUpsideDownWorld = bTargetWorld;
 	GraphMovementComponent->SetCurrentNode(LinkedPortalNode);
+
+	const int32 CrossedPortalNodeID = LinkedPortalNode->NodeData.NodeID;
+	OnPortalCrossed.Broadcast(CrossedPortalNodeID);
 
 	UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Teleported to portal node %d in %s world — will move normally next turn"),
 		LinkedPortalNode->NodeData.NodeID, bInUpsideDownWorld ? TEXT("UPSIDE-DOWN") : TEXT("NORMAL"));
