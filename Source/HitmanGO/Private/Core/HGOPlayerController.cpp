@@ -4,6 +4,35 @@
 #include "Core/HGOPlayerController.h"
 #include "EngineUtils.h"
 
+namespace
+{
+	float SnapYawToNearest90(float Yaw)
+	{
+		return FMath::RoundToFloat(Yaw / 90.0f) * 90.0f;
+	}
+
+	float GetYawFromSwipeDirection(ENodeDirection Direction)
+	{
+		switch (Direction)
+		{
+		case ENodeDirection::North:
+			return 180.0f;
+
+		case ENodeDirection::South:
+			return 0.0f;
+
+		case ENodeDirection::East:
+			return -90.0f;
+
+		case ENodeDirection::West:
+			return 90.0f;
+
+		default:
+			return 0.0f;
+		}
+	}
+}
+
 AHGOPlayerController::AHGOPlayerController()
 {
 	SetShowMouseCursor(true);
@@ -137,30 +166,43 @@ void AHGOPlayerController::PawnReleased(const FInputActionValue& Value)
 {
 	if (bPawnSelected)
 	{
+		APawn* ControlledPawn = GetPawn();
+		ENodeDirection SwipeDirection = ENodeDirection::None;
+
 		float SwipeLength = SwipeDelta.Length();
 
 		if (SwipeLength >= SwipeThreshold)
 		{
-			ENodeDirection SwipeDirection = CalculateSwipeDirection(SwipeDelta);
+			SwipeDirection = CalculateSwipeDirection(SwipeDelta);
 
-			if (SwipeDirection != ENodeDirection::None)
+			if (SwipeDirection != ENodeDirection::None && ControlledPawn)
 			{
-				APawn* ControlledPawn = GetPawn();
-				
-				if (ControlledPawn)
+				if (UHGOGraphMovementComponent* MovementComp = ControlledPawn->FindComponentByClass<UHGOGraphMovementComponent>())
 				{
-					UHGOGraphMovementComponent* MovementComp = ControlledPawn->FindComponentByClass<UHGOGraphMovementComponent>();
-
-					if (MovementComp)
-					{
-						MovementComp->TryMoveInDirection(SwipeDirection);
-					}
+					MovementComp->TryMoveInDirection(SwipeDirection);
 				}
 			}
 		}
 
-		GetPawn()->SetActorLocation(StartPawnLocationBeforeGrab);
-		GetPawn()->SetActorRotation(FRotator::ZeroRotator);
+		if (ControlledPawn)
+		{
+			ControlledPawn->SetActorLocation(StartPawnLocationBeforeGrab);
+
+			float TargetYaw = ControlledPawn->GetActorRotation().Yaw;
+
+			// Si on a un swipe valide, on s'aligne sur la direction du swipe
+			if (SwipeDirection != ENodeDirection::None)
+			{
+				TargetYaw = GetYawFromSwipeDirection(SwipeDirection);
+			}
+			// Sinon, on snap juste au multiple de 90° le plus proche
+			else
+			{
+				TargetYaw = SnapYawToNearest90(TargetYaw);
+			}
+
+			ControlledPawn->SetActorRotation(FRotator(0.0f, TargetYaw, 0.0f));
+		}
 	}
 
 	bPawnSelected = false;
@@ -184,19 +226,23 @@ void AHGOPlayerController::PawnGrabbed(const FInputActionValue& Value)
 			switch (SwipeDirection)
 			{
 			case ENodeDirection::North:
-				TiltRotation.Pitch = -MaxTiltAngle; 
+				TiltRotation.Pitch = MaxTiltAngle;
+				TiltRotation.Yaw = 180.0f; // Faire face à la direction du swipe
 				break;
                     
 			case ENodeDirection::South:
-				TiltRotation.Pitch = MaxTiltAngle; 
+				TiltRotation.Pitch = MaxTiltAngle;
+				TiltRotation.Yaw = 0.0f; // Faire face à la direction du swipe
 				break;
                     
 			case ENodeDirection::East:
-				TiltRotation.Roll = MaxTiltAngle; 
+				TiltRotation.Pitch = MaxTiltAngle;
+				TiltRotation.Yaw = -90.0f; // Faire face à la direction du swipe
 				break;
                     
 			case ENodeDirection::West:
-				TiltRotation.Roll = -MaxTiltAngle;
+				TiltRotation.Pitch = MaxTiltAngle;
+				TiltRotation.Yaw = 90.0f; // Faire face à la direction du swipe
 				break;
                     
 			default:
@@ -204,6 +250,7 @@ void AHGOPlayerController::PawnGrabbed(const FInputActionValue& Value)
 			}
 			
 		}
+		
         
 		GetPawn()->SetActorRotation(FMath::RInterpTo(GetPawn()->GetActorRotation(), TiltRotation, GetWorld()->GetDeltaSeconds(), 10.0f));
 	}

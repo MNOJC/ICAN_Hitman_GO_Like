@@ -98,6 +98,7 @@ void AHGOEnemyPawn::InitEnemyPosition()
 
 void AHGOEnemyPawn::ExecuteEnemyMove()
 {
+	UFMODBlueprintStatics::PlayEvent2D(GetWorld(), EnemyUpSound, true);
 	if (MovementPathNodeIDs.Num() == 0)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[EnemyPawn] No movement path defined!"));
@@ -350,6 +351,7 @@ void AHGOEnemyPawn::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	UpdateEnemyRotation(DeltaTime);
+	UpdatePortalDive(DeltaTime);
 }
 
 // Called to bind functionality to input
@@ -435,7 +437,7 @@ void AHGOEnemyPawn::HandleEnemyPortal()
 			
 		case EEnemyPortalState::Building:
 			// Deuxième tour : traverser le portail
-			CrossPortal();
+			StartPortalDive();
 			break;
 			
 		default:
@@ -456,7 +458,7 @@ void AHGOEnemyPawn::BuildPortal()
 		if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
 		{
 			TurnManager->RegisterActionStarted();
-			
+			UFMODBlueprintStatics::PlayEvent2D(GetWorld(), PortalCreateSound, true);
 			// Lancer la rotation vers la prochaine node après le portail
 			// Cela appellera automatiquement RegisterActionCompleted() à la fin
 			ExecuteEnemyRotation();
@@ -598,6 +600,51 @@ void AHGOEnemyPawn::OnDetectionOverlapBegin(UPrimitiveComponent* OverlappedCompo
 	Player->KillPlayer(true);
 }
 
+void AHGOEnemyPawn::StartPortalDive()
+{
+	if (bIsPortalDiving)
+	{
+		return;
+	}
+
+	// Fallback sécurité : si durée trop faible, garder le comportement instantané
+	if (PortalDiveDuration <= KINDA_SMALL_NUMBER)
+	{
+		CrossPortal();
+		return;
+	}
+
+	bIsPortalDiving = true;
+	PortalDiveElapsed = 0.0f;
+	PortalDiveStartLocation = GetActorLocation();
+	PortalDiveTargetLocation = PortalDiveStartLocation + FVector(0.0f, 0.0f, PortalDiveOffsetZ);
+
+	UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Starting portal dive transition"));
+}
+
+void AHGOEnemyPawn::UpdatePortalDive(float DeltaTime)
+{
+	if (!bIsPortalDiving)
+	{
+		return;
+	}
+
+	PortalDiveElapsed += DeltaTime;
+
+	const float Alpha = FMath::Clamp(PortalDiveElapsed / PortalDiveDuration, 0.0f, 1.0f);
+	const float SmoothedAlpha = FMath::InterpEaseInOut(0.0f, 1.0f, Alpha, 2.0f);
+
+	const FVector NewLocation = FMath::Lerp(PortalDiveStartLocation, PortalDiveTargetLocation, SmoothedAlpha);
+	SetActorLocation(NewLocation);
+
+	if (Alpha >= 1.0f)
+	{
+		bIsPortalDiving = false;
+		
+		CrossPortal();
+	}
+}
+
 bool AHGOEnemyPawn::CheckAndKillPlayer()
 {
 	if (!GraphMovementComponent || !GraphMovementComponent->GetCurrentNode())
@@ -624,23 +671,30 @@ bool AHGOEnemyPawn::CheckAndKillPlayer()
 		return false;
 	}
 
-	// Vérifier si le joueur est dans le même monde
+	// Vérifier même monde
 	if (bInUpsideDownWorld != Player->GraphMovementComponent->bInUpsideDownWorld)
 	{
-		return false; // Le joueur est dans un autre monde, on ne peut pas le voir
+		return false;
 	}
 
-	// Vérifier si le joueur est dans le champ de vision (devant, 1 node de distance, connecté)
+	// CAS 1 : l'ennemi est déjà arrivé sur la case du joueur
+	if (GraphMovementComponent->GetCurrentNode() == PlayerNode)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Reached player tile. Killing player."));
+		bKillMoveInProgress = false;
+		Player->KillPlayer(false);
+		return true;
+	}
+
+	// CAS 2 : le joueur est adjacent -> commencer le déplacement de kill
 	if (GraphMovementComponent->IsNodeAdjacent(PlayerNode))
 	{
-		GraphMovementComponent->TryMoveToNodeID(PlayerNode->NodeData.NodeID); // Se tourner vers le joueur
-		UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Player detected in vision! Killing player..."));
-		
-		// Tuer le joueur directement
-		Player->KillPlayer(false);
-		
-		
-		return true;
+		if (GraphMovementComponent->TryMoveToNodeID(PlayerNode->NodeData.NodeID))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Player detected. Starting kill move."));
+			bKillMoveInProgress = true;
+			return true;
+		}
 	}
 
 	return false;

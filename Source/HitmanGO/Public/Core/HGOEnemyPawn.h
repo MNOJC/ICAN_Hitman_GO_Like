@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "HGOGraphMovementComponent.h"
 #include "Components/BoxComponent.h"
+#include "FMODEvent.h"
+#include "FMODBlueprintStatics.h"
 #include "GameFramework/Pawn.h"
 #include "Core/HGOPlayerPawn.h"
 #include "HGOEnemyPawn.generated.h"
@@ -46,6 +48,12 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Enemy")
 	UHGOGraphMovementComponent* GraphMovementComponent;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Enemy|Detection")
+	UFMODEvent* PortalCreateSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Enemy|Detection")
+	UFMODEvent* EnemyUpSound;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -66,6 +74,13 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Path")
 	FRotator DefaultRotation = FRotator::ZeroRotator;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Portal")
+	float PortalDiveOffsetZ = -50.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Portal")
+	float PortalDiveDuration = 1.0f;
+	
 
 	// Execute the enemy's movement to the next node in path
 	UFUNCTION(BlueprintCallable, Category = "Enemy")
@@ -103,6 +118,7 @@ public:
 	// Push state (accessed by GraphMovementComponent)
 	bool bBeingPushed = false;
 	bool bReturningToPatrol = false;
+	bool bKillMoveInProgress = false;
 	TArray<int32> PushPathNodeIDs;
 
 private:
@@ -134,6 +150,7 @@ private:
 	void AdvancePathIndex();
 	int32 GetNextNodeID();
 	
+	
 	// Portal handling
 	
 	void BuildPortal();
@@ -141,10 +158,15 @@ private:
 
 	// Overlap callback for detection collision (kills player on overlap, regardless of world)
 	UFUNCTION()
-	void OnDetectionOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
-		bool bFromSweep, const FHitResult& SweepResult);
-	
+	void OnDetectionOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+	bool bIsPortalDiving = false;
+	float PortalDiveElapsed = 0.0f;
+	FVector PortalDiveStartLocation = FVector::ZeroVector;
+	FVector PortalDiveTargetLocation = FVector::ZeroVector;
+
+	void StartPortalDive();
+	void UpdatePortalDive(float DeltaTime);
 	
 	
 };

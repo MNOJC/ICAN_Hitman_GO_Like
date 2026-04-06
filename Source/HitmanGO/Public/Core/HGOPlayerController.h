@@ -6,6 +6,8 @@
 #include "InputMappingContext.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
+#include "FMODEvent.h"
+#include "FMODBlueprintStatics.h"
 #include "Core/HGOGraphMovementComponent.h"
 #include "Enumeration/GraphDataEnumeration.h"
 #include "GameFramework/PlayerController.h"
@@ -56,7 +58,6 @@ public:
 
 	FRotator TargetCameraRotation;
 	bool bPawnHovered = false;
-	
 
 private:
 

@@ -2,10 +2,12 @@
 
 
 #include "Core/HGOPlayerPawn.h"
+#include "FMODBlueprintStatics.h"
 #include "Core/HGOPlayerController.h"
 #include "Core/HGOTacticalTurnManager.h"
 #include "Core/HGOEnemyPawn.h"
 #include "Graph/HGOTacticalLevelGenerator.h"
+#include "Materials/MaterialExpressionFmod.h"
 
 // Sets default values
 AHGOPlayerPawn::AHGOPlayerPawn()
@@ -70,15 +72,6 @@ void AHGOPlayerPawn::BeginPlay()
 
 void AHGOPlayerPawn::OnPawnClicked(UPrimitiveComponent* TouchedComponent, FKey ButtonPressed)
 {
-	// Bloquer si input désactivé
-	/*if (bInputBlocked)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Red,
-			TEXT("[Player] Input blocked - Animation in progress"));
-		return;
-	}*/
-
-	
 
 	if (UWorld* World = GetWorld())
 	{
@@ -95,7 +88,8 @@ void AHGOPlayerPawn::OnPawnClicked(UPrimitiveComponent* TouchedComponent, FKey B
 					return;
 				}
 			}
-            
+
+			UFMODBlueprintStatics::PlayEvent2D(GetWorld(), PlayerPawnGrabSound, true);
 			HGOController->PawnPressed(FInputActionValue());
 		}
 	}
@@ -302,9 +296,12 @@ void AHGOPlayerPawn::TriggerPlayerAbility()
 		-1, 3.f, FColor::Orange,
 		FString::Printf(TEXT("[Ability] Cooldown set to %d turns"), CurrentAbilityCooldown)
 	);
+	
 
+	UFMODBlueprintStatics::PlayEvent2D(GetWorld(), AbilitySound, true);
 	// Appeler PushEnemy sur l'ennemi
 	TargetEnemy->PushEnemy(AlignedDirection);
+	
 }
 
 void AHGOPlayerPawn::BlockInput()
@@ -352,6 +349,7 @@ void AHGOPlayerPawn::CheckAbilityAvailability()
 			-1, 3.f, FColor::Green,
 			TEXT("[Ability] ★ ABILITY NOW AVAILABLE ★")
 		);
+		UFMODBlueprintStatics::PlayEvent2D(GetWorld(), AbilityReadySound, true);
 		OnAbilityBecameAvailable();
 	}
 	else if (!bAbilityAvailable && bWasAvailable)
