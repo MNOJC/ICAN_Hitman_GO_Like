@@ -58,6 +58,12 @@ public:
 
 	FRotator TargetCameraRotation;
 	bool bPawnHovered = false;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
+	float CameraYawMin = -80.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
+	float CameraYawMax = 80.0f;
 
 private:
 

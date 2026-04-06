@@ -128,6 +128,7 @@ void AHGOPlayerController::Look(const FInputActionValue& Value)
 		FRotator NewRotation = ViewTarget->GetActorRotation();
 		NewRotation.Yaw += LookAxis.X;
 		NewRotation.Pitch = FMath::Clamp(NewRotation.Pitch + LookAxis.Y, CameraPitchMin, CameraPitchMax);
+		NewRotation.Yaw = FMath::Clamp(NewRotation.Yaw, CameraYawMin, CameraYawMax);
 		
 		TargetCameraRotation = NewRotation;
 	}
