@@ -137,8 +137,7 @@ void AHGOTacticalLevelGenerator::BuildAnimationLayers()
 
     // DÉTERMINER LE MONDE ACTIF
     bool bTargetUpsideDownWorld = false;
-    
-    // Trouver le joueur pour connaître le monde actif
+
     if (UWorld* World = GetWorld())
     {
         for (TActorIterator<AHGOPlayerPawn> PlayerItr(World); PlayerItr; ++PlayerItr)
@@ -152,17 +151,24 @@ void AHGOTacticalLevelGenerator::BuildAnimationLayers()
         }
     }
 
-    GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan,
-        FString::Printf(TEXT("[GraphAnim] Building layers for %s world"), 
-            bTargetUpsideDownWorld ? TEXT("UPSIDE-DOWN") : TEXT("NORMAL")));
+    GEngine->AddOnScreenDebugMessage(
+        -1,
+        2.f,
+        FColor::Cyan,
+        FString::Printf(TEXT("[GraphAnim] Building layers for %s world"),
+            bTargetUpsideDownWorld ? TEXT("UPSIDE-DOWN") : TEXT("NORMAL"))
+    );
 
-    // Filtrer les nodes selon le monde
+    // Récupérer toutes les nodes du monde actif
     TArray<UHGONodeGraphComponent*> WorldNodes;
+    TMap<int32, UHGONodeGraphComponent*> WorldNodeMap;
+
     for (UHGONodeGraphComponent* Node : NodeGraphs)
     {
         if (Node && Node->NodeData.bIsUpsideDownNode == bTargetUpsideDownWorld)
         {
             WorldNodes.Add(Node);
+            WorldNodeMap.Add(Node->NodeData.NodeID, Node);
         }
     }
 
@@ -172,118 +178,151 @@ void AHGOTacticalLevelGenerator::BuildAnimationLayers()
         return;
     }
 
-    // Trouver la node Start dans le monde actif
-    UHGONodeGraphComponent* StartNode = nullptr;
+    // Trouver une node de départ préférée
+    UHGONodeGraphComponent* PreferredStartNode = nullptr;
+
     for (UHGONodeGraphComponent* Node : WorldNodes)
     {
         if (Node && Node->NodeData.NodeType == ENodeType::Start)
         {
-            StartNode = Node;
+            PreferredStartNode = Node;
             break;
         }
-
-        if (Node && Node->NodeData.NodeType == ENodeType::PlayerPortal)
-        {
-            StartNode = Node;
-        }
     }
 
-    if (!StartNode)
+    if (!PreferredStartNode)
     {
-        UE_LOG(LogTemp, Error, TEXT("[GraphAnim] No Start node found in %s world!"),
-            bTargetUpsideDownWorld ? TEXT("upside-down") : TEXT("normal"));
-        return;
-    }
-
-    // BFS pour calculer la distance depuis Start (UNIQUEMENT dans le monde actif)
-    TMap<UHGONodeGraphComponent*, int32> DistanceMap;
-    TQueue<UHGONodeGraphComponent*> Queue;
-    
-    Queue.Enqueue(StartNode);
-    DistanceMap.Add(StartNode, 0);
-
-    int32 MaxDistance = 0;
-
-    while (!Queue.IsEmpty())
-    {
-        UHGONodeGraphComponent* Current;
-        Queue.Dequeue(Current);
-
-        int32 CurrentDistance = DistanceMap[Current];
-        MaxDistance = FMath::Max(MaxDistance, CurrentDistance);
-
-        // Parcourir les voisins (UNIQUEMENT ceux du même monde)
-        for (auto& Pair : Current->ConnectedNodes)
+        for (UHGONodeGraphComponent* Node : WorldNodes)
         {
-            UHGONodeGraphComponent* Neighbor = Pair.Value;
-            if (Neighbor && 
-                !DistanceMap.Contains(Neighbor) &&
-                Neighbor->NodeData.bIsUpsideDownNode == bTargetUpsideDownWorld)
+            if (Node && Node->NodeData.NodeType == ENodeType::PlayerPortal)
             {
-                DistanceMap.Add(Neighbor, CurrentDistance + 1);
-                Queue.Enqueue(Neighbor);
+                PreferredStartNode = Node;
+                break;
             }
         }
     }
 
-    // Créer les layers
-    AnimationLayers.SetNum(MaxDistance + 1);
-
-    for (auto& Pair : DistanceMap)
+    if (!PreferredStartNode)
     {
-        UHGONodeGraphComponent* Node = Pair.Key;
-        int32 Distance = Pair.Value;
+        PreferredStartNode = WorldNodes[0];
+    }
 
-        FNodeAnimationData AnimData;
-        AnimData.Node = Node;
-        AnimData.DistanceFromStart = Distance;
-        AnimData.TargetScale = FVector(0.02f);
-        AnimData.CurrentAnimTime = 0.0f;
+    TSet<UHGONodeGraphComponent*> GlobalVisited;
+    int32 LayerOffset = 0;
 
-        // Trouver les edges connectées à cette node (DANS LE MÊME MONDE)
+    auto AddEdgesForNode = [&](FNodeAnimationData& AnimData)
+    {
         for (UHGOEdgeGraphComponent* Edge : EdgeGraphs)
         {
-            if (!Edge) continue;
+            if (!Edge)
+                continue;
 
-            // Vérifier si cette edge appartient au même monde
-            bool bEdgeInTargetWorld = false;
-            
-            for (UHGONodeGraphComponent* OtherNode : NodeGraphs)
+            UHGONodeGraphComponent** SourceNodePtr = WorldNodeMap.Find(Edge->EdgeData.SourceNodeID);
+            UHGONodeGraphComponent** TargetNodePtr = WorldNodeMap.Find(Edge->EdgeData.TargetNodeID);
+
+            // Si une des deux nodes n'est pas dans ce monde, on ignore l'edge
+            if (!SourceNodePtr || !TargetNodePtr)
+                continue;
+
+            UHGONodeGraphComponent* SourceNode = *SourceNodePtr;
+            UHGONodeGraphComponent* TargetNode = *TargetNodePtr;
+
+            if (SourceNode == AnimData.Node || TargetNode == AnimData.Node)
             {
-                if (!OtherNode) continue;
+                AnimData.ConnectedEdges.AddUnique(Edge);
+            }
+        }
+    };
 
-                // L'edge est dans le monde cible si ses nodes source/target le sont
-                if (OtherNode->NodeData.NodeID == Edge->EdgeData.SourceNodeID)
+    auto BuildComponentFromStart = [&](UHGONodeGraphComponent* ComponentStart)
+    {
+        if (!ComponentStart || GlobalVisited.Contains(ComponentStart))
+            return;
+
+        TMap<UHGONodeGraphComponent*, int32> DistanceMap;
+        TQueue<UHGONodeGraphComponent*> Queue;
+
+        Queue.Enqueue(ComponentStart);
+        DistanceMap.Add(ComponentStart, 0);
+        GlobalVisited.Add(ComponentStart);
+
+        int32 MaxDistanceInComponent = 0;
+
+        while (!Queue.IsEmpty())
+        {
+            UHGONodeGraphComponent* Current = nullptr;
+            Queue.Dequeue(Current);
+
+            const int32 CurrentDistance = DistanceMap[Current];
+            MaxDistanceInComponent = FMath::Max(MaxDistanceInComponent, CurrentDistance);
+
+            for (const auto& Pair : Current->ConnectedNodes)
+            {
+                UHGONodeGraphComponent* Neighbor = Pair.Value;
+
+                if (Neighbor &&
+                    Neighbor->NodeData.bIsUpsideDownNode == bTargetUpsideDownWorld &&
+                    !DistanceMap.Contains(Neighbor))
                 {
-                    if (OtherNode->NodeData.bIsUpsideDownNode == bTargetUpsideDownWorld)
-                    {
-                        // Vérifier aussi la target
-                        for (auto& Connection : OtherNode->ConnectedNodes)
-                        {
-                            if (Connection.Value == Node && 
-                                Node->NodeData.NodeID == Edge->EdgeData.TargetNodeID)
-                            {
-                                bEdgeInTargetWorld = true;
-                                AnimData.ConnectedEdges.AddUnique(Edge);
-                                break;
-                            }
-                        }
-                    }
+                    DistanceMap.Add(Neighbor, CurrentDistance + 1);
+                    GlobalVisited.Add(Neighbor);
+                    Queue.Enqueue(Neighbor);
                 }
-                
-                if (bEdgeInTargetWorld)
-                    break;
             }
         }
 
-        AnimationLayers[Distance].Add(AnimData);
+        const int32 NeededLayerCount = LayerOffset + MaxDistanceInComponent + 1;
+        if (AnimationLayers.Num() < NeededLayerCount)
+        {
+            AnimationLayers.SetNum(NeededLayerCount);
+        }
+
+        for (const auto& Pair : DistanceMap)
+        {
+            UHGONodeGraphComponent* Node = Pair.Key;
+            const int32 LocalDistance = Pair.Value;
+            const int32 FinalLayerIndex = LayerOffset + LocalDistance;
+
+            FNodeAnimationData AnimData;
+            AnimData.Node = Node;
+            AnimData.DistanceFromStart = FinalLayerIndex;
+            AnimData.TargetScale = FVector(0.02f);
+            AnimData.CurrentAnimTime = 0.0f;
+
+            AddEdgesForNode(AnimData);
+
+            AnimationLayers[FinalLayerIndex].Add(AnimData);
+        }
+
+        UE_LOG(LogTemp, Log, TEXT("[GraphAnim] Component built from node %d with %d layers"),
+            ComponentStart->NodeData.NodeID,
+            MaxDistanceInComponent + 1);
+
+        // Décale la prochaine composante pour qu'elle s'anime après
+        LayerOffset += MaxDistanceInComponent + 1;
+    };
+
+    // Première composante : celle du Start/Portal
+    BuildComponentFromStart(PreferredStartNode);
+
+    // Puis toutes les autres composantes non connectées
+    for (UHGONodeGraphComponent* Node : WorldNodes)
+    {
+        if (Node && !GlobalVisited.Contains(Node))
+        {
+            BuildComponentFromStart(Node);
+        }
     }
 
-    GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
-        FString::Printf(TEXT("[GraphAnim] Built %d layers for %s world (%d nodes)"), 
+    GEngine->AddOnScreenDebugMessage(
+        -1,
+        2.f,
+        FColor::Green,
+        FString::Printf(TEXT("[GraphAnim] Built %d layers for %s world (%d nodes total)"),
             AnimationLayers.Num(),
             bTargetUpsideDownWorld ? TEXT("UPSIDE-DOWN") : TEXT("NORMAL"),
-            WorldNodes.Num()));
+            WorldNodes.Num())
+    );
 
     for (int32 i = 0; i < AnimationLayers.Num(); ++i)
     {
