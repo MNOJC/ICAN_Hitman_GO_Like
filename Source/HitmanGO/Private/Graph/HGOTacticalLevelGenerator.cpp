@@ -7,489 +7,494 @@
 // Sets default values
 AHGOTacticalLevelGenerator::AHGOTacticalLevelGenerator()
 {
- 	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = true;
 }
 
 void AHGOTacticalLevelGenerator::GenerateVisualGraph()
 {
-    if (!LevelData)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("LevelData is null, cannot generate visual graph"));
-        return;
-    }
+	if (!LevelData)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("LevelData is null, cannot generate visual graph"));
+		return;
+	}
     
-    if (!NodeGraphClass || !EdgeGraphClass)
-    {
-        UE_LOG(LogTemp, Error, TEXT("NodeGraphClass or EdgeGraphClass is not assigned!"));
-        return;
-    }
+	if (!NodeGraphClass || !EdgeGraphClass)
+	{
+		UE_LOG(LogTemp, Error, TEXT("NodeGraphClass or EdgeGraphClass is not assigned!"));
+		return;
+	}
     
-    ClearVisualGraph();
+	ClearVisualGraph();
     
-    TMap<int32, UHGONodeGraphComponent*> SpawnedNodeMap;
+	TMap<int32, UHGONodeGraphComponent*> SpawnedNodeMap;
     
-    // GÉNÉRER LES NODES (CACHÉES AU DÉPART)
-    for (const FNodeData& NodeData : LevelData->Nodes)
-    {
-        UHGONodeGraphComponent* NodeComp = NewObject<UHGONodeGraphComponent>(this, NodeGraphClass);
+	// =========================
+	// GENERATE NODES
+	// =========================
+	for (const FNodeData& NodeData : LevelData->Nodes)
+	{
+		UHGONodeGraphComponent* NodeComp = NewObject<UHGONodeGraphComponent>(this, NodeGraphClass);
 
-        if (!NodeComp)
-            continue;
+		if (!NodeComp)
+			continue;
 
-        NodeComp->SetupAttachment(GetRootComponent());
-        NodeComp->RegisterComponent();
+		NodeComp->SetupAttachment(GetRootComponent());
+		NodeComp->RegisterComponent();
 
-        FVector WorldNodePos = NodeData.Position;
-        WorldNodePos = FVector(WorldNodePos.X, WorldNodePos.Y, ZOffset);
+		FVector WorldNodePos = NodeData.Position;
+		WorldNodePos = FVector(WorldNodePos.X, WorldNodePos.Y, ZOffset);
         
-        NodeComp->SetWorldLocation(WorldNodePos);
-        NodeComp->NodeData = NodeData;
+		NodeComp->SetWorldLocation(WorldNodePos);
 
-        // CACHER TOUTES LES NODES AU DÉPART (scale 0)
-        NodeComp->SetWorldScale3D(FVector::ZeroVector);
-        NodeComp->SetVisibility(true, true);
+		// On transfère toutes les données de la node depuis le Data Asset
+		NodeComp->NodeData = NodeData;
 
-        NodeGraphs.Add(NodeComp);
-        SpawnedNodeMap.Add(NodeData.NodeID, NodeComp);
-    }
+		// Hidden at start
+		NodeComp->SetWorldScale3D(FVector::ZeroVector);
+		NodeComp->SetVisibility(true, true);
+
+		NodeGraphs.Add(NodeComp);
+		SpawnedNodeMap.Add(NodeData.NodeID, NodeComp);
+
+		UE_LOG(LogTemp, Log, TEXT("[LevelGen] Node %d spawned | UpsideDown=%s"),
+			NodeData.NodeID,
+			NodeData.bIsUpsideDownNode ? TEXT("true") : TEXT("false"));
+	}
     
-    // GÉNÉRER LES EDGES (CACHÉES AU DÉPART)
-    for (const FEdgeData& EdgeData : LevelData->Edges)
-    {
-        UHGONodeGraphComponent** SourceNodePtr = SpawnedNodeMap.Find(EdgeData.SourceNodeID);
-        UHGONodeGraphComponent** TargetNodePtr = SpawnedNodeMap.Find(EdgeData.TargetNodeID);
+	// =========================
+	// GENERATE EDGES
+	// =========================
+	for (const FEdgeData& EdgeData : LevelData->Edges)
+	{
+		UHGONodeGraphComponent** SourceNodePtr = SpawnedNodeMap.Find(EdgeData.SourceNodeID);
+		UHGONodeGraphComponent** TargetNodePtr = SpawnedNodeMap.Find(EdgeData.TargetNodeID);
 
-        if (!SourceNodePtr || !TargetNodePtr)
-            continue;
+		if (!SourceNodePtr || !TargetNodePtr)
+			continue;
 
-        UHGONodeGraphComponent* SourceNode = *SourceNodePtr;
-        UHGONodeGraphComponent* TargetNode = *TargetNodePtr;
+		UHGONodeGraphComponent* SourceNode = *SourceNodePtr;
+		UHGONodeGraphComponent* TargetNode = *TargetNodePtr;
 
-        SourceNode->ConnectedNodes.Add(EdgeData.Direction, TargetNode);
+		if (!SourceNode || !TargetNode)
+			continue;
 
-        if (EdgeData.bIsBidirectional)
-        {
-            ENodeDirection Opposite = GetOppositeDirection(EdgeData.Direction);
-            TargetNode->ConnectedNodes.Add(Opposite, SourceNode);
-        }
+		// Construire les connexions gameplay
+		SourceNode->ConnectedNodes.Add(EdgeData.Direction, TargetNode);
 
-        FVector SourcePos = SourceNode->GetComponentLocation();
-        FVector TargetPos = TargetNode->GetComponentLocation();
+		if (EdgeData.bIsBidirectional)
+		{
+			const ENodeDirection Opposite = GetOppositeDirection(EdgeData.Direction);
+			TargetNode->ConnectedNodes.Add(Opposite, SourceNode);
+		}
 
-        FVector MidPoint = (SourcePos + TargetPos) * 0.5f;
-        FVector Direction = TargetPos - SourcePos;
-        FRotator EdgeRotation = Direction.Rotation();
-        float Distance = Direction.Size();
+		const FVector SourcePos = SourceNode->GetComponentLocation();
+		const FVector TargetPos = TargetNode->GetComponentLocation();
 
-        UHGOEdgeGraphComponent* EdgeComp = NewObject<UHGOEdgeGraphComponent>(this, EdgeGraphClass);
+		const FVector MidPoint = (SourcePos + TargetPos) * 0.5f;
+		const FVector DirectionVector = TargetPos - SourcePos;
+		const FRotator EdgeRotation = DirectionVector.Rotation();
 
-        if (!EdgeComp)
-            continue;
+		float Distance = DirectionVector.Size();
+		Distance -= 2.0f;
 
-        EdgeComp->SetupAttachment(GetRootComponent());
-        EdgeComp->RegisterComponent();
+		UHGOEdgeGraphComponent* EdgeComp = NewObject<UHGOEdgeGraphComponent>(this, EdgeGraphClass);
 
-        EdgeComp->SetWorldLocation(MidPoint);
-        EdgeComp->SetWorldRotation(EdgeRotation);
-        EdgeComp->EdgeData = EdgeData;
+		if (!EdgeComp)
+			continue;
 
-        FVector EdgeScale(Distance / 100.f, 0.0f, 1.f); // Y scale à 0 au départ
-        EdgeComp->SetWorldScale3D(EdgeScale);
-        EdgeComp->SetVisibility(true, true);
+		EdgeComp->SetupAttachment(GetRootComponent());
+		EdgeComp->RegisterComponent();
 
-        EdgeGraphs.Add(EdgeComp);
-    }
+		EdgeComp->SetWorldLocation(MidPoint);
+		EdgeComp->SetWorldRotation(EdgeRotation);
 
-    UE_LOG(LogTemp, Log, TEXT("[LevelGen] Graph generated with %d nodes and %d edges (all hidden)"), 
-        NodeGraphs.Num(), EdgeGraphs.Num());
+		// On part du Data Asset
+		FEdgeData FinalEdgeData = EdgeData;
+
+		// IMPORTANT :
+		// un edge est upside down si AU MOINS UNE des deux nodes reliées est upside down
+		FinalEdgeData.bIsUpsideDownEdge =
+			SourceNode->NodeData.bIsUpsideDownNode ||
+			TargetNode->NodeData.bIsUpsideDownNode;
+
+		EdgeComp->EdgeData = FinalEdgeData;
+
+		const FVector EdgeScale(Distance / 100.f, 0.0f, Distance / 100.f);
+		EdgeComp->SetWorldScale3D(EdgeScale);
+		EdgeComp->SetVisibility(true, true);
+
+		EdgeGraphs.Add(EdgeComp);
+
+		UE_LOG(LogTemp, Log, TEXT("[LevelGen] Edge %d spawned | %d -> %d | UpsideDown=%s"),
+			FinalEdgeData.EdgeID,
+			FinalEdgeData.SourceNodeID,
+			FinalEdgeData.TargetNodeID,
+			FinalEdgeData.bIsUpsideDownEdge ? TEXT("true") : TEXT("false"));
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[LevelGen] Graph generated with %d nodes and %d edges"),
+		NodeGraphs.Num(), EdgeGraphs.Num());
 }
 
 void AHGOTacticalLevelGenerator::ClearVisualGraph()
 {
-    for (UHGONodeGraphComponent* Node : NodeGraphs)
-    {
-        if (Node)
-        {
-            Node->DestroyComponent();
-        }
-    }
-    NodeGraphs.Empty();
+	for (UHGONodeGraphComponent* Node : NodeGraphs)
+	{
+		if (Node)
+		{
+			Node->DestroyComponent();
+		}
+	}
+	NodeGraphs.Empty();
     
-    for (UHGOEdgeGraphComponent* Edge : EdgeGraphs)
-    {
-        if (Edge)
-        {
-            Edge->DestroyComponent();
-        }
-    }
-    EdgeGraphs.Empty();
+	for (UHGOEdgeGraphComponent* Edge : EdgeGraphs)
+	{
+		if (Edge)
+		{
+			Edge->DestroyComponent();
+		}
+	}
+	EdgeGraphs.Empty();
 
-    AnimationLayers.Empty();
-    CurrentAnimLayer = 0;
-    bIsAnimating = false;
+	AnimationLayers.Empty();
+	CurrentAnimLayer = 0;
+	bIsAnimating = false;
 }
-
-// Modifications pour HGOTacticalLevelGenerator.cpp
 
 void AHGOTacticalLevelGenerator::BuildAnimationLayers()
 {
-    AnimationLayers.Empty();
+	AnimationLayers.Empty();
 
-    // DÉTERMINER LE MONDE ACTIF
-    bool bTargetUpsideDownWorld = false;
+	// Déterminer le monde actif
+	bool bTargetUpsideDownWorld = false;
 
-    if (UWorld* World = GetWorld())
-    {
-        for (TActorIterator<AHGOPlayerPawn> PlayerItr(World); PlayerItr; ++PlayerItr)
-        {
-            AHGOPlayerPawn* Player = *PlayerItr;
-            if (Player && Player->GraphMovementComponent)
-            {
-                bTargetUpsideDownWorld = Player->GraphMovementComponent->bInUpsideDownWorld;
-                break;
-            }
-        }
-    }
+	if (UWorld* World = GetWorld())
+	{
+		for (TActorIterator<AHGOPlayerPawn> PlayerItr(World); PlayerItr; ++PlayerItr)
+		{
+			AHGOPlayerPawn* Player = *PlayerItr;
+			if (Player && Player->GraphMovementComponent)
+			{
+				bTargetUpsideDownWorld = Player->GraphMovementComponent->bInUpsideDownWorld;
+				break;
+			}
+		}
+	}
 
-    GEngine->AddOnScreenDebugMessage(
-        -1,
-        2.f,
-        FColor::Cyan,
-        FString::Printf(TEXT("[GraphAnim] Building layers for %s world"),
-            bTargetUpsideDownWorld ? TEXT("UPSIDE-DOWN") : TEXT("NORMAL"))
-    );
+	GEngine->AddOnScreenDebugMessage(
+		-1,
+		2.f,
+		FColor::Cyan,
+		FString::Printf(TEXT("[GraphAnim] Building layers for %s world"),
+			bTargetUpsideDownWorld ? TEXT("UPSIDE-DOWN") : TEXT("NORMAL"))
+	);
 
-    // Récupérer toutes les nodes du monde actif
-    TArray<UHGONodeGraphComponent*> WorldNodes;
-    TMap<int32, UHGONodeGraphComponent*> WorldNodeMap;
+	TArray<UHGONodeGraphComponent*> WorldNodes;
+	TMap<int32, UHGONodeGraphComponent*> WorldNodeMap;
 
-    for (UHGONodeGraphComponent* Node : NodeGraphs)
-    {
-        if (Node && Node->NodeData.bIsUpsideDownNode == bTargetUpsideDownWorld)
-        {
-            WorldNodes.Add(Node);
-            WorldNodeMap.Add(Node->NodeData.NodeID, Node);
-        }
-    }
+	for (UHGONodeGraphComponent* Node : NodeGraphs)
+	{
+		if (Node && Node->NodeData.bIsUpsideDownNode == bTargetUpsideDownWorld)
+		{
+			WorldNodes.Add(Node);
+			WorldNodeMap.Add(Node->NodeData.NodeID, Node);
+		}
+	}
 
-    if (WorldNodes.Num() == 0)
-    {
-        UE_LOG(LogTemp, Error, TEXT("[GraphAnim] No nodes in target world!"));
-        return;
-    }
+	if (WorldNodes.Num() == 0)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[GraphAnim] No nodes in target world!"));
+		return;
+	}
 
-    // Trouver une node de départ préférée
-    UHGONodeGraphComponent* PreferredStartNode = nullptr;
+	UHGONodeGraphComponent* PreferredStartNode = nullptr;
 
-    for (UHGONodeGraphComponent* Node : WorldNodes)
-    {
-        if (Node && Node->NodeData.NodeType == ENodeType::Start)
-        {
-            PreferredStartNode = Node;
-            break;
-        }
-    }
+	for (UHGONodeGraphComponent* Node : WorldNodes)
+	{
+		if (Node && Node->NodeData.NodeType == ENodeType::Start)
+		{
+			PreferredStartNode = Node;
+			break;
+		}
+	}
 
-    if (!PreferredStartNode)
-    {
-        for (UHGONodeGraphComponent* Node : WorldNodes)
-        {
-            if (Node && Node->NodeData.NodeType == ENodeType::PlayerPortal)
-            {
-                PreferredStartNode = Node;
-                break;
-            }
-        }
-    }
+	if (!PreferredStartNode)
+	{
+		for (UHGONodeGraphComponent* Node : WorldNodes)
+		{
+			if (Node && Node->NodeData.NodeType == ENodeType::PlayerPortal)
+			{
+				PreferredStartNode = Node;
+				break;
+			}
+		}
+	}
 
-    if (!PreferredStartNode)
-    {
-        PreferredStartNode = WorldNodes[0];
-    }
+	if (!PreferredStartNode)
+	{
+		PreferredStartNode = WorldNodes[0];
+	}
 
-    TSet<UHGONodeGraphComponent*> GlobalVisited;
-    int32 LayerOffset = 0;
+	TSet<UHGONodeGraphComponent*> GlobalVisited;
+	int32 LayerOffset = 0;
 
-    auto AddEdgesForNode = [&](FNodeAnimationData& AnimData)
-    {
-        for (UHGOEdgeGraphComponent* Edge : EdgeGraphs)
-        {
-            if (!Edge)
-                continue;
+	auto AddEdgesForNode = [&](FNodeAnimationData& AnimData)
+	{
+		for (UHGOEdgeGraphComponent* Edge : EdgeGraphs)
+		{
+			if (!Edge)
+				continue;
 
-            UHGONodeGraphComponent** SourceNodePtr = WorldNodeMap.Find(Edge->EdgeData.SourceNodeID);
-            UHGONodeGraphComponent** TargetNodePtr = WorldNodeMap.Find(Edge->EdgeData.TargetNodeID);
+			// On utilise maintenant directement le bool calculé au spawn
+			if (Edge->EdgeData.bIsUpsideDownEdge != bTargetUpsideDownWorld)
+				continue;
 
-            // Si une des deux nodes n'est pas dans ce monde, on ignore l'edge
-            if (!SourceNodePtr || !TargetNodePtr)
-                continue;
+			if (Edge->EdgeData.SourceNodeID == AnimData.Node->NodeData.NodeID ||
+				Edge->EdgeData.TargetNodeID == AnimData.Node->NodeData.NodeID)
+			{
+				AnimData.ConnectedEdges.AddUnique(Edge);
+			}
+		}
+	};
 
-            UHGONodeGraphComponent* SourceNode = *SourceNodePtr;
-            UHGONodeGraphComponent* TargetNode = *TargetNodePtr;
+	auto BuildComponentFromStart = [&](UHGONodeGraphComponent* ComponentStart)
+	{
+		if (!ComponentStart || GlobalVisited.Contains(ComponentStart))
+			return;
 
-            if (SourceNode == AnimData.Node || TargetNode == AnimData.Node)
-            {
-                AnimData.ConnectedEdges.AddUnique(Edge);
-            }
-        }
-    };
+		TMap<UHGONodeGraphComponent*, int32> DistanceMap;
+		TQueue<UHGONodeGraphComponent*> Queue;
 
-    auto BuildComponentFromStart = [&](UHGONodeGraphComponent* ComponentStart)
-    {
-        if (!ComponentStart || GlobalVisited.Contains(ComponentStart))
-            return;
+		Queue.Enqueue(ComponentStart);
+		DistanceMap.Add(ComponentStart, 0);
+		GlobalVisited.Add(ComponentStart);
 
-        TMap<UHGONodeGraphComponent*, int32> DistanceMap;
-        TQueue<UHGONodeGraphComponent*> Queue;
+		int32 MaxDistanceInComponent = 0;
 
-        Queue.Enqueue(ComponentStart);
-        DistanceMap.Add(ComponentStart, 0);
-        GlobalVisited.Add(ComponentStart);
+		while (!Queue.IsEmpty())
+		{
+			UHGONodeGraphComponent* Current = nullptr;
+			Queue.Dequeue(Current);
 
-        int32 MaxDistanceInComponent = 0;
+			const int32 CurrentDistance = DistanceMap[Current];
+			MaxDistanceInComponent = FMath::Max(MaxDistanceInComponent, CurrentDistance);
 
-        while (!Queue.IsEmpty())
-        {
-            UHGONodeGraphComponent* Current = nullptr;
-            Queue.Dequeue(Current);
+			for (const auto& Pair : Current->ConnectedNodes)
+			{
+				UHGONodeGraphComponent* Neighbor = Pair.Value;
 
-            const int32 CurrentDistance = DistanceMap[Current];
-            MaxDistanceInComponent = FMath::Max(MaxDistanceInComponent, CurrentDistance);
+				if (Neighbor &&
+					Neighbor->NodeData.bIsUpsideDownNode == bTargetUpsideDownWorld &&
+					!DistanceMap.Contains(Neighbor))
+				{
+					DistanceMap.Add(Neighbor, CurrentDistance + 1);
+					GlobalVisited.Add(Neighbor);
+					Queue.Enqueue(Neighbor);
+				}
+			}
+		}
 
-            for (const auto& Pair : Current->ConnectedNodes)
-            {
-                UHGONodeGraphComponent* Neighbor = Pair.Value;
+		const int32 NeededLayerCount = LayerOffset + MaxDistanceInComponent + 1;
+		if (AnimationLayers.Num() < NeededLayerCount)
+		{
+			AnimationLayers.SetNum(NeededLayerCount);
+		}
 
-                if (Neighbor &&
-                    Neighbor->NodeData.bIsUpsideDownNode == bTargetUpsideDownWorld &&
-                    !DistanceMap.Contains(Neighbor))
-                {
-                    DistanceMap.Add(Neighbor, CurrentDistance + 1);
-                    GlobalVisited.Add(Neighbor);
-                    Queue.Enqueue(Neighbor);
-                }
-            }
-        }
+		for (const auto& Pair : DistanceMap)
+		{
+			UHGONodeGraphComponent* Node = Pair.Key;
+			const int32 LocalDistance = Pair.Value;
+			const int32 FinalLayerIndex = LayerOffset + LocalDistance;
 
-        const int32 NeededLayerCount = LayerOffset + MaxDistanceInComponent + 1;
-        if (AnimationLayers.Num() < NeededLayerCount)
-        {
-            AnimationLayers.SetNum(NeededLayerCount);
-        }
+			FNodeAnimationData AnimData;
+			AnimData.Node = Node;
+			AnimData.DistanceFromStart = FinalLayerIndex;
+			AnimData.TargetScale = FVector(0.06f);
+			AnimData.CurrentAnimTime = 0.0f;
 
-        for (const auto& Pair : DistanceMap)
-        {
-            UHGONodeGraphComponent* Node = Pair.Key;
-            const int32 LocalDistance = Pair.Value;
-            const int32 FinalLayerIndex = LayerOffset + LocalDistance;
+			AddEdgesForNode(AnimData);
 
-            FNodeAnimationData AnimData;
-            AnimData.Node = Node;
-            AnimData.DistanceFromStart = FinalLayerIndex;
-            AnimData.TargetScale = FVector(0.02f);
-            AnimData.CurrentAnimTime = 0.0f;
+			AnimationLayers[FinalLayerIndex].Add(AnimData);
+		}
 
-            AddEdgesForNode(AnimData);
+		UE_LOG(LogTemp, Log, TEXT("[GraphAnim] Component built from node %d with %d layers"),
+			ComponentStart->NodeData.NodeID,
+			MaxDistanceInComponent + 1);
 
-            AnimationLayers[FinalLayerIndex].Add(AnimData);
-        }
+		LayerOffset += MaxDistanceInComponent + 1;
+	};
 
-        UE_LOG(LogTemp, Log, TEXT("[GraphAnim] Component built from node %d with %d layers"),
-            ComponentStart->NodeData.NodeID,
-            MaxDistanceInComponent + 1);
+	BuildComponentFromStart(PreferredStartNode);
 
-        // Décale la prochaine composante pour qu'elle s'anime après
-        LayerOffset += MaxDistanceInComponent + 1;
-    };
+	for (UHGONodeGraphComponent* Node : WorldNodes)
+	{
+		if (Node && !GlobalVisited.Contains(Node))
+		{
+			BuildComponentFromStart(Node);
+		}
+	}
 
-    // Première composante : celle du Start/Portal
-    BuildComponentFromStart(PreferredStartNode);
+	GEngine->AddOnScreenDebugMessage(
+		-1,
+		2.f,
+		FColor::Green,
+		FString::Printf(TEXT("[GraphAnim] Built %d layers for %s world (%d nodes total)"),
+			AnimationLayers.Num(),
+			bTargetUpsideDownWorld ? TEXT("UPSIDE-DOWN") : TEXT("NORMAL"),
+			WorldNodes.Num())
+	);
 
-    // Puis toutes les autres composantes non connectées
-    for (UHGONodeGraphComponent* Node : WorldNodes)
-    {
-        if (Node && !GlobalVisited.Contains(Node))
-        {
-            BuildComponentFromStart(Node);
-        }
-    }
-
-    GEngine->AddOnScreenDebugMessage(
-        -1,
-        2.f,
-        FColor::Green,
-        FString::Printf(TEXT("[GraphAnim] Built %d layers for %s world (%d nodes total)"),
-            AnimationLayers.Num(),
-            bTargetUpsideDownWorld ? TEXT("UPSIDE-DOWN") : TEXT("NORMAL"),
-            WorldNodes.Num())
-    );
-
-    for (int32 i = 0; i < AnimationLayers.Num(); ++i)
-    {
-        UE_LOG(LogTemp, Log, TEXT("[GraphAnim] Layer %d: %d nodes"), i, AnimationLayers[i].Num());
-    }
+	for (int32 i = 0; i < AnimationLayers.Num(); ++i)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[GraphAnim] Layer %d: %d nodes"), i, AnimationLayers[i].Num());
+	}
 }
 
 void AHGOTacticalLevelGenerator::PlayGraphAnimation(bool bReversed)
 {
-    GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Cyan,
-        FString::Printf(TEXT("[GraphAnim] Starting animation (Reversed: %s)"), 
-            bReversed ? TEXT("YES") : TEXT("NO")));
+	GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Cyan,
+		FString::Printf(TEXT("[GraphAnim] Starting animation (Reversed: %s)"),
+			bReversed ? TEXT("YES") : TEXT("NO")));
 
-    bReverseAnimation = bReversed;
-    BuildAnimationLayers();
+	bReverseAnimation = bReversed;
+	BuildAnimationLayers();
 
-    if (AnimationLayers.Num() == 0)
-    {
-        UE_LOG(LogTemp, Error, TEXT("[GraphAnim] No animation layers!"));
-        return;
-    }
+	if (AnimationLayers.Num() == 0)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[GraphAnim] No animation layers!"));
+		return;
+	}
 
-    bIsAnimating = true;
-    CurrentAnimLayer = bReversed ? AnimationLayers.Num() - 1 : 0;
-    LayerTimer = 0.0f;
+	bIsAnimating = true;
+	CurrentAnimLayer = bReversed ? AnimationLayers.Num() - 1 : 0;
+	LayerTimer = 0.0f;
 }
 
 void AHGOTacticalLevelGenerator::UpdateGraphAnimation(float DeltaTime)
 {
-    if (!bIsAnimating || AnimationLayers.Num() == 0)
-        return;
+	if (!bIsAnimating || AnimationLayers.Num() == 0)
+		return;
 
-    // Animer le layer actuel
-    if (CurrentAnimLayer >= 0 && CurrentAnimLayer < AnimationLayers.Num())
-    {
-        AnimateLayer(AnimationLayers[CurrentAnimLayer], DeltaTime);
-    }
+	if (CurrentAnimLayer >= 0 && CurrentAnimLayer < AnimationLayers.Num())
+	{
+		AnimateLayer(AnimationLayers[CurrentAnimLayer], DeltaTime);
+	}
 
-    // Attendre avant de passer au layer suivant
-    LayerTimer += DeltaTime;
+	LayerTimer += DeltaTime;
 
-    if (LayerTimer >= NodeScaleDuration + DelayBetweenLayers)
-    {
-        // Passer au layer suivant
-        if (bReverseAnimation)
-        {
-            CurrentAnimLayer--;
-            if (CurrentAnimLayer < 0)
-            {
-                // Animation terminée
-                bIsAnimating = false;
-                OnGraphAnimationComplete();
-                return;
-            }
-        }
-        else
-        {
-            CurrentAnimLayer++;
-            if (CurrentAnimLayer >= AnimationLayers.Num())
-            {
-                // Animation terminée
-                bIsAnimating = false;
-                OnGraphAnimationComplete();
-                return;
-            }
-        }
+	if (LayerTimer >= NodeScaleDuration + DelayBetweenLayers)
+	{
+		if (bReverseAnimation)
+		{
+			CurrentAnimLayer--;
+			if (CurrentAnimLayer < 0)
+			{
+				bIsAnimating = false;
+				OnGraphAnimationComplete();
+				return;
+			}
+		}
+		else
+		{
+			CurrentAnimLayer++;
+			if (CurrentAnimLayer >= AnimationLayers.Num())
+			{
+				bIsAnimating = false;
+				OnGraphAnimationComplete();
+				return;
+			}
+		}
 
-        LayerTimer = 0.0f;
-    }
+		LayerTimer = 0.0f;
+	}
 }
 
 void AHGOTacticalLevelGenerator::AnimateLayer(TArray<FNodeAnimationData>& Layer, float DeltaTime)
 {
-    for (FNodeAnimationData& AnimData : Layer)
-    {
-        if (!AnimData.Node)
-            continue;
+	for (FNodeAnimationData& AnimData : Layer)
+	{
+		if (!AnimData.Node)
+			continue;
 
-        AnimData.CurrentAnimTime += DeltaTime;
-        float Alpha = FMath::Clamp(AnimData.CurrentAnimTime / NodeScaleDuration, 0.0f, 1.0f);
+		AnimData.CurrentAnimTime += DeltaTime;
+		float Alpha = FMath::Clamp(AnimData.CurrentAnimTime / NodeScaleDuration, 0.0f, 1.0f);
 
-        // Courbe ease out
-        Alpha = FMath::InterpEaseInOut(0.0f, 1.0f, Alpha, 1.5f);
+		Alpha = FMath::InterpEaseInOut(0.0f, 1.0f, Alpha, 1.5f);
 
-        // Animer la node
-        FVector NodeScale = bReverseAnimation ? 
-            FMath::Lerp(AnimData.TargetScale, FVector::ZeroVector, Alpha) :
-            FMath::Lerp(FVector::ZeroVector, AnimData.TargetScale, Alpha);
+		FVector NodeScale = bReverseAnimation
+			? FMath::Lerp(AnimData.TargetScale, FVector::ZeroVector, Alpha)
+			: FMath::Lerp(FVector::ZeroVector, AnimData.TargetScale, Alpha);
 
-        AnimData.Node->SetWorldScale3D(NodeScale);
+		AnimData.Node->SetWorldScale3D(NodeScale);
 
-        // Animer les edges
-        for (UHGOEdgeGraphComponent* Edge : AnimData.ConnectedEdges)
-        {
-            if (!Edge)
-                continue;
+		for (UHGOEdgeGraphComponent* Edge : AnimData.ConnectedEdges)
+		{
+			if (!Edge)
+				continue;
 
-            FVector EdgeScale = Edge->GetComponentScale();
-            float TargetYScale = 0.01f;
+			FVector EdgeScale = Edge->GetComponentScale();
+			const float TargetYScale = 0.01f;
 
-            float NewYScale = bReverseAnimation ?
-                FMath::Lerp(TargetYScale, 0.0f, Alpha) :
-                FMath::Lerp(0.0f, TargetYScale, Alpha);
+			const float NewYScale = bReverseAnimation
+				? FMath::Lerp(TargetYScale, 0.0f, Alpha)
+				: FMath::Lerp(0.0f, TargetYScale, Alpha);
 
-            EdgeScale.Y = NewYScale;
-            Edge->SetWorldScale3D(EdgeScale);
-        }
-    }
+			EdgeScale.Y = NewYScale;
+			Edge->SetWorldScale3D(EdgeScale);
+		}
+	}
 }
 
 void AHGOTacticalLevelGenerator::OnGraphAnimationComplete()
 {
-    GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
-        TEXT("[GraphAnim] ✓ Animation COMPLETE"));
+	GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
+		TEXT("[GraphAnim] Animation COMPLETE"));
 
-    switch (CurrentAnimState)
-    {
-        case EAnimationState::HidingGraph:
-            // Graph caché, lancer l'animation de board flip
-            GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow,
-                TEXT("[Sequence] Graph hidden → Triggering board flip animation"));
-            
-            CurrentAnimState = EAnimationState::WaitingForBoardFlip;
-            break;
+	switch (CurrentAnimState)
+	{
+	case EAnimationState::HidingGraph:
+		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow,
+			TEXT("[Sequence] Graph hidden -> Triggering board flip animation"));
 
-        case EAnimationState::ShowingGraph:
-            // Graph affiché, séquence terminée
-            GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
-                TEXT("[Sequence] ✓ WORLD SWITCH COMPLETE - Player input enabled"));
-            
-            CurrentAnimState = EAnimationState::None;
-            OnSwitchWorldAnimCompleted.Broadcast();
-            break;
+		CurrentAnimState = EAnimationState::WaitingForBoardFlip;
+		break;
 
-        case EAnimationState::None:
-            // Animation initiale (BeginPlay)
-            GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
-                TEXT("[Sequence] ✓ Initial graph shown - Player input enabled"));
-            
-            OnGraphAnimationCompleted.Broadcast();
-            break;
+	case EAnimationState::ShowingGraph:
+		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
+			TEXT("[Sequence] WORLD SWITCH COMPLETE - Player input enabled"));
 
-        default:
-            break;
-    }
+		CurrentAnimState = EAnimationState::None;
+		OnSwitchWorldAnimCompleted.Broadcast();
+		break;
+
+	case EAnimationState::None:
+		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
+			TEXT("[Sequence] Initial graph shown - Player input enabled"));
+
+		OnGraphAnimationCompleted.Broadcast();
+		break;
+
+	default:
+		break;
+	}
 }
 
 void AHGOTacticalLevelGenerator::StartWorldSwitchSequence()
 {
-    GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Magenta,
-        TEXT("[Sequence] === STARTING WORLD SWITCH SEQUENCE ==="));
+	GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Magenta,
+		TEXT("[Sequence] === STARTING WORLD SWITCH SEQUENCE ==="));
 
-    CurrentAnimState = EAnimationState::HidingGraph;
-    
-    // Cacher le graph actuel (reverse animation)
-    PlayGraphAnimation(true);
+	CurrentAnimState = EAnimationState::HidingGraph;
+	PlayGraphAnimation(true);
 }
 
 void AHGOTacticalLevelGenerator::OnBoardFlipAnimationComplete()
 {
-    GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow,
-        TEXT("[Sequence] Board flip complete → Showing new graph"));
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow,
+		TEXT("[Sequence] Board flip complete -> Showing new graph"));
 
-    CurrentAnimState = EAnimationState::ShowingGraph;
-    
-    // Afficher le nouveau graph (normal animation)
-    PlayGraphAnimation(false);
+	CurrentAnimState = EAnimationState::ShowingGraph;
+	PlayGraphAnimation(false);
 }
 
 void AHGOTacticalLevelGenerator::BeginPlay()
@@ -497,28 +502,26 @@ void AHGOTacticalLevelGenerator::BeginPlay()
 	Super::BeginPlay();
 
 	GenerateVisualGraph();
-    
-    // Lancer l'animation initiale du graph
-    PlayGraphAnimation(false);
+	PlayGraphAnimation(false);
 
-    OnBoardFlipAnimCompleted.AddDynamic(this, &AHGOTacticalLevelGenerator::OnBoardFlipAnimationComplete);
+	OnBoardFlipAnimCompleted.AddDynamic(this, &AHGOTacticalLevelGenerator::OnBoardFlipAnimationComplete);
 }
 
 void AHGOTacticalLevelGenerator::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-    UpdateGraphAnimation(DeltaTime);
+	UpdateGraphAnimation(DeltaTime);
 }
 
 ENodeDirection AHGOTacticalLevelGenerator::GetOppositeDirection(ENodeDirection Direction)
 {
-    switch (Direction)
-    {
-    case ENodeDirection::North: return ENodeDirection::South;
-    case ENodeDirection::South: return ENodeDirection::North;
-    case ENodeDirection::East:  return ENodeDirection::West;
-    case ENodeDirection::West:  return ENodeDirection::East;
-    default: return ENodeDirection::None;
-    }
+	switch (Direction)
+	{
+	case ENodeDirection::North: return ENodeDirection::South;
+	case ENodeDirection::South: return ENodeDirection::North;
+	case ENodeDirection::East:  return ENodeDirection::West;
+	case ENodeDirection::West:  return ENodeDirection::East;
+	default: return ENodeDirection::None;
+	}
 }

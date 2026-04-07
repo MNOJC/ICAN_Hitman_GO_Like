@@ -48,6 +48,9 @@ struct FEdgeData
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	ENodeDirection Direction = ENodeDirection::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bIsUpsideDownEdge = false;
 	
 };
 		
