@@ -57,6 +57,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Enemy|Detection")
 	UFMODEvent* EnemyUpSound;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Enemy|Detection")
+	UFMODEvent* EnemyCrossPortalSound;
+
 	UPROPERTY(BlueprintAssignable, Category = "Enemy|Portal")
 	FOnPortalCreated OnPortalCreated;
 

@@ -243,31 +243,7 @@ void AHGOPlayerPawn::TriggerPlayerAbility()
 	AHGOEnemyPawn* TargetEnemy = nullptr;
 	ENodeDirection AlignedDirection = ENodeDirection::None;
 
-	for (TActorIterator<AHGOEnemyPawn> EnemyItr(GetWorld()); EnemyItr; ++EnemyItr)
-	{
-		AHGOEnemyPawn* Enemy = *EnemyItr;
-		if (!Enemy || !Enemy->GraphMovementComponent)
-			continue;
-
-		UHGONodeGraphComponent* EnemyNode = Enemy->GraphMovementComponent->GetCurrentNode();
-		if (!EnemyNode)
-			continue;
-
-		// Vérifier même monde
-		if (GraphMovementComponent->bInUpsideDownWorld != Enemy->GraphMovementComponent->bInUpsideDownWorld)
-			continue;
-
-		// Vérifier alignement
-		ENodeDirection Direction;
-		if (GraphMovementComponent->IsNodeInAlignedDirection(EnemyNode, Direction))
-		{
-			TargetEnemy = Enemy;
-			AlignedDirection = Direction;
-			break; // Premier ennemi trouvé
-		}
-	}
-
-	if (!TargetEnemy)
+	if (!FindPushableEnemy(TargetEnemy, AlignedDirection))
 	{
 		GEngine->AddOnScreenDebugMessage(
 			-1, 3.f, FColor::Red,
@@ -360,6 +336,86 @@ void AHGOPlayerPawn::CheckAbilityAvailability()
 			TEXT("[Ability] ✗ ABILITY NOW UNAVAILABLE ✗")
 		);
 		OnAbilityBecameUnavailable();
+	}
+}
+
+bool AHGOPlayerPawn::FindPushableEnemy(AHGOEnemyPawn*& OutEnemy, ENodeDirection& OutDirection) const
+{
+	OutEnemy = nullptr;
+	OutDirection = ENodeDirection::None;
+
+	if (!GraphMovementComponent || !GraphMovementComponent->GetCurrentNode())
+	{
+		return false;
+	}
+
+	// Cooldown
+	if (CurrentAbilityCooldown > 0)
+	{
+		return false;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	// Parcourir tous les ennemis pour trouver un aligné dans le même monde
+	for (TActorIterator<AHGOEnemyPawn> EnemyItr(World); EnemyItr; ++EnemyItr)
+	{
+		AHGOEnemyPawn* Enemy = *EnemyItr;
+		if (!Enemy || !Enemy->GraphMovementComponent)
+		{
+			continue;
+		}
+
+		UHGONodeGraphComponent* EnemyNode = Enemy->GraphMovementComponent->GetCurrentNode();
+		if (!EnemyNode)
+		{
+			continue;
+		}
+
+		// Même monde
+		if (GraphMovementComponent->bInUpsideDownWorld != Enemy->GraphMovementComponent->bInUpsideDownWorld)
+		{
+			continue;
+		}
+
+		// Alignement
+		ENodeDirection Direction = ENodeDirection::None;
+		if (GraphMovementComponent->IsNodeInAlignedDirection(EnemyNode, Direction))
+		{
+			OutEnemy = Enemy;
+			OutDirection = Direction;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void AHGOPlayerPawn::EvaluatePushReadyAtTurnStart()
+{
+	AHGOEnemyPawn* FoundEnemy = nullptr;
+	ENodeDirection FoundDirection = ENodeDirection::None;
+
+	bIsPushReadyThisTurn = FindPushableEnemy(FoundEnemy, FoundDirection);
+
+	OnPlayerAlignedAndPushReady.Broadcast(bIsPushReadyThisTurn);
+
+	UE_LOG(LogTemp, Log, TEXT("[Player] Push ready at turn start: %s"),
+		bIsPushReadyThisTurn ? TEXT("TRUE") : TEXT("FALSE"));
+
+	if (bIsPushReadyThisTurn)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			2.f,
+			FColor::Green,
+			FString::Printf(TEXT("[Player] Push READY (%s)"),
+				*UEnum::GetValueAsString(FoundDirection))
+		);
 	}
 }
 

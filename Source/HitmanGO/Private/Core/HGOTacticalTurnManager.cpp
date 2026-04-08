@@ -177,7 +177,6 @@ void UHGOTacticalTurnManager::StartPlayerTurn()
 {
 	UE_LOG(LogTemp, Warning, TEXT("[TurnManager] === PLAYER TURN START ==="));
 	
-	// Mettre à jour le cooldown de l'ability du joueur
 	if (UWorld* World = GetWorld())
 	{
 		for (TActorIterator<AHGOPlayerPawn> PlayerItr(World); PlayerItr; ++PlayerItr)
@@ -186,6 +185,7 @@ void UHGOTacticalTurnManager::StartPlayerTurn()
 			if (Player)
 			{
 				Player->UpdateAbilityCooldown();
+				Player->EvaluatePushReadyAtTurnStart();
 			}
 		}
 	}

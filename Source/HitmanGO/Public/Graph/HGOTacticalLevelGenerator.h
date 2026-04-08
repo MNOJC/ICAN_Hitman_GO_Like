@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "HGOEdgeGraphComponent.h"
 #include "HGONodeGraphComponent.h"
+#include "Materials/MaterialInterface.h"
 #include "GameFramework/Actor.h"
 #include "LevelData/HGOTacticalLevelData.h"
 #include "HGOTacticalLevelGenerator.generated.h"
@@ -12,6 +13,8 @@
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnBoardFlipAnimCompleted);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSwitchWorldAnimCompleted);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGraphAnimationCompleted);
+
+class UMaterialInterface;
 
 USTRUCT()
 struct FNodeAnimationData
@@ -90,6 +93,19 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Level Generator")
 	void OnGraphAnimationComplete();
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visual")
+	UMaterialInterface* NormalNodeMaterial = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visual")
+	UMaterialInterface* UpsideDownNodeMaterial = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visual")
+	UMaterialInterface* NormalEdgeMaterial = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visual")
+	UMaterialInterface* UpsideDownEdgeMaterial = nullptr;
+
 
 protected:
 	// Called when the game starts or when spawned

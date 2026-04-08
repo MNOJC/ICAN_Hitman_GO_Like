@@ -14,6 +14,7 @@
 #include "HGOPlayerPawn.generated.h"
 
 struct FKey;
+class AHGOEnemyPawn;
 
 // Delegate pour la mort du joueur
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerDeath, bool, bKillInOtherWorld);
@@ -24,6 +25,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLevelComplete);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInputBlocked, bool, bIsBlocked);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAbilityCooldownUpdated, int32, NewCooldown);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerAlignedAndPushReady, bool, bIsReady);
 
 UCLASS()
 class HITMANGO_API AHGOPlayerPawn : public APawn
@@ -120,6 +123,18 @@ public:
 	
 	void UpdateAbilityCooldown();
 	void CheckAbilityAvailability();
+
+	UPROPERTY(BlueprintAssignable, Category = "Player|Ability")
+	FOnPlayerAlignedAndPushReady OnPlayerAlignedAndPushReady;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Player|Ability")
+	bool bIsPushReadyThisTurn = false;
+
+	UFUNCTION(BlueprintCallable, Category = "Player|Ability")
+	void EvaluatePushReadyAtTurnStart();
+
+	UFUNCTION(BlueprintCallable, Category = "Player|Ability")
+	bool FindPushableEnemy(AHGOEnemyPawn*& OutEnemy, ENodeDirection& OutDirection) const;
 
 protected:
 	// Ability cooldown

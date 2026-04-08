@@ -44,7 +44,7 @@ void AHGOEnemyPawn::BeginPlay()
 	{
 		if (AHGOGameMode* GameMode = World->GetAuthGameMode<AHGOGameMode>())
 		{
-			GameMode->OnSwitchWorldGraph.AddDynamic(this, &AHGOEnemyPawn::UpdateVisibilityForWorld);
+			//GameMode->OnSwitchWorldGraph.AddDynamic(this, &AHGOEnemyPawn::UpdateVisibilityForWorld);
 		}
 	}
 }
@@ -625,6 +625,8 @@ void AHGOEnemyPawn::StartPortalDive()
 		return;
 	}
 
+	UFMODBlueprintStatics::PlayEvent2D(GetWorld(), EnemyCrossPortalSound, true);
+	
 	bIsPortalDiving = true;
 	PortalDiveElapsed = 0.0f;
 	PortalDiveStartLocation = GetActorLocation();
