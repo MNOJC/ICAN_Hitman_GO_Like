@@ -131,6 +131,7 @@ void AHGOPlayerPawn::InitPawnPosition()
 				{
 					FVector SpawnLocation = LevelGenerator->GetActorLocation() + Node.Position;
 					SetActorLocation(SpawnLocation);
+					SetActorRotation(DefaultSpawnRotation);
 
 					UHGONodeGraphComponent* StartNode = nullptr;
 					for (UHGONodeGraphComponent* GraphNode : LevelGenerator->NodeGraphs)

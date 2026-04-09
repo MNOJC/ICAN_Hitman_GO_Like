@@ -63,6 +63,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Player|Ability")
 	UFMODEvent* PlayerPawnGrabSound;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Initialization")
+	FRotator DefaultSpawnRotation = FRotator(0.f, 0.f, 0.f);
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
