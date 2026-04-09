@@ -179,6 +179,8 @@ private:
 
 	void StartPortalDive();
 	void UpdatePortalDive(float DeltaTime);
+
+	bool bPortalVisualStateAppliedBeforeCross = false;
 	
 	
 };
