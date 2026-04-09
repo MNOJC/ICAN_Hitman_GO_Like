@@ -585,9 +585,9 @@ void AHGOEnemyPawn::UpdateVisibilityForWorld(bool bPlayerInUpsideDownWorld)
 	// Afficher l'ennemi seulement si il est dans le même monde que le joueur
 	bool bShouldBeVisible = (bInUpsideDownWorld == bPlayerInUpsideDownWorld);
 	
-	EnemyMeshComponent->SetVisibility(bShouldBeVisible, true);
+	//EnemyMeshComponent->SetVisibility(bShouldBeVisible, true);
 	
-	UE_LOG(LogTemp, Log, TEXT("[EnemyPawn] Visibility updated: %s (Player in %s, Enemy in %s)"),
+	UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Visibility updated: %s (Player in %s, Enemy in %s)"),
 		bShouldBeVisible ? TEXT("VISIBLE") : TEXT("HIDDEN"),
 		bPlayerInUpsideDownWorld ? TEXT("UPSIDE-DOWN") : TEXT("NORMAL"),
 		bInUpsideDownWorld ? TEXT("UPSIDE-DOWN") : TEXT("NORMAL"));
