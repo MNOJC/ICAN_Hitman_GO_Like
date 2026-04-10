@@ -43,7 +43,6 @@ class HITMANGO_API AHGOTacticalLevelGenerator : public AActor
 	GENERATED_BODY()
 	
 public:	
-	// Sets default values for this actor's properties
 	AHGOTacticalLevelGenerator();
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Level Data")
@@ -72,8 +71,7 @@ public:
 
 	UPROPERTY()
 	TArray<UHGOEdgeGraphComponent*> EdgeGraphs;
-
-	// Animation settings
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
 	float NodeScaleDuration = 0.3f;
 
@@ -83,11 +81,9 @@ public:
 	void GenerateVisualGraph();
 	void ClearVisualGraph();
 
-	// Appelé par le GameMode pour démarrer la séquence de switch
 	UFUNCTION(BlueprintCallable, Category = "Level Generator")
 	void StartWorldSwitchSequence();
-
-	// Appelé par le Blueprint après l'animation de board flip
+	
 	UFUNCTION(BlueprintCallable, Category = "Level Generator")
 	void OnBoardFlipAnimationComplete();
 
@@ -110,8 +106,7 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-
-	// Animation state
+	
 	TArray<TArray<FNodeAnimationData>> AnimationLayers;
 	int32 CurrentAnimLayer = 0;
 	bool bIsAnimating = false;

@@ -25,8 +25,7 @@ void AHGOTacticalLevelGenerator::GenerateVisualGraph()
 	}
 
 	ClearVisualGraph();
-
-	// Sécurise un root component si l'acteur n'en a pas
+	
 	USceneComponent* RootComp = GetRootComponent();
 	if (!RootComp)
 	{
@@ -43,9 +42,6 @@ void AHGOTacticalLevelGenerator::GenerateVisualGraph()
 
 	TMap<int32, UHGONodeGraphComponent*> SpawnedNodeMap;
 
-	// =========================
-	// GENERATE NODES
-	// =========================
 	for (const FNodeData& NodeData : LevelData->Nodes)
 	{
 		UHGONodeGraphComponent* NodeComp = NewObject<UHGONodeGraphComponent>(this, NodeGraphClass);
@@ -60,11 +56,9 @@ void AHGOTacticalLevelGenerator::GenerateVisualGraph()
 		WorldNodePos = FVector(WorldNodePos.X, WorldNodePos.Y, ZOffset);
 
 		NodeComp->SetWorldLocation(WorldNodePos);
-
-		// Transférer les données depuis le Data Asset
+		
 		NodeComp->NodeData = NodeData;
-
-		// Appliquer le bon matériau selon le monde
+		
 		if (NodeData.bIsUpsideDownNode)
 		{
 			if (UpsideDownNodeMaterial)
@@ -79,8 +73,7 @@ void AHGOTacticalLevelGenerator::GenerateVisualGraph()
 				NodeComp->SetMaterial(0, NormalNodeMaterial);
 			}
 		}
-
-		// Visible + scale 0 pour garder ton anim
+		
 		NodeComp->SetHiddenInGame(false, true);
 		NodeComp->SetVisibility(true, true);
 		NodeComp->SetWorldScale3D(FVector::ZeroVector);
@@ -92,10 +85,7 @@ void AHGOTacticalLevelGenerator::GenerateVisualGraph()
 			NodeData.NodeID,
 			NodeData.bIsUpsideDownNode ? TEXT("true") : TEXT("false"));
 	}
-
-	// =========================
-	// GENERATE EDGES
-	// =========================
+	
 	for (const FEdgeData& EdgeData : LevelData->Edges)
 	{
 		UHGONodeGraphComponent** SourceNodePtr = SpawnedNodeMap.Find(EdgeData.SourceNodeID);
@@ -110,7 +100,6 @@ void AHGOTacticalLevelGenerator::GenerateVisualGraph()
 		if (!SourceNode || !TargetNode)
 			continue;
 
-		// Construire les connexions gameplay
 		SourceNode->ConnectedNodes.Add(EdgeData.Direction, TargetNode);
 
 		if (EdgeData.bIsBidirectional)
@@ -140,18 +129,15 @@ void AHGOTacticalLevelGenerator::GenerateVisualGraph()
 
 		EdgeComp->SetWorldLocation(MidPoint);
 		EdgeComp->SetWorldRotation(EdgeRotation);
-
-		// On part du Data Asset
+		
 		FEdgeData FinalEdgeData = EdgeData;
-
-		// Un edge est upside down si au moins une des deux nodes reliées est upside down
+		
 		FinalEdgeData.bIsUpsideDownEdge =
 			SourceNode->NodeData.bIsUpsideDownNode ||
 			TargetNode->NodeData.bIsUpsideDownNode;
 
 		EdgeComp->EdgeData = FinalEdgeData;
-
-		// Appliquer le bon matériau selon le monde de l'edge
+		
 		if (FinalEdgeData.bIsUpsideDownEdge)
 		{
 			if (UpsideDownEdgeMaterial)
@@ -169,8 +155,7 @@ void AHGOTacticalLevelGenerator::GenerateVisualGraph()
 
 		const FVector EdgeScale(Distance / 100.f, 0.0f, Distance / 100.f);
 		EdgeComp->SetWorldScale3D(EdgeScale);
-
-		// Visible
+		
 		EdgeComp->SetHiddenInGame(false, true);
 		EdgeComp->SetVisibility(true, true);
 
@@ -215,8 +200,7 @@ void AHGOTacticalLevelGenerator::ClearVisualGraph()
 void AHGOTacticalLevelGenerator::BuildAnimationLayers()
 {
 	AnimationLayers.Empty();
-
-	// Déterminer le monde actif
+	
 	bool bTargetUpsideDownWorld = false;
 
 	if (UWorld* World = GetWorld())
@@ -295,8 +279,7 @@ void AHGOTacticalLevelGenerator::BuildAnimationLayers()
 		{
 			if (!Edge)
 				continue;
-
-			// On utilise maintenant directement le bool calculé au spawn
+			
 			if (Edge->EdgeData.bIsUpsideDownEdge != bTargetUpsideDownWorld)
 				continue;
 

@@ -449,7 +449,6 @@ void UHGOGraphMovementComponent::NotifyMovementStarted()
 
 void UHGOGraphMovementComponent::NotifyMovementCompleted()
 {
-	// IMPORTANT: Toujours mettre à jour CurrentNode après le mouvement
 	if (TargetNode)
 	{
 		CurrentNode = TargetNode;
@@ -457,37 +456,29 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 
 		OnMovementCompleted.Broadcast(CurrentNode->NodeData.NodeID);
 	}
-
-	// CAS 1: C'est un ENNEMI qui vient de bouger
+	
 	if (AHGOEnemyPawn* EnemyPawn = Cast<AHGOEnemyPawn>(GetOwner()))
 	{
 		UFMODBlueprintStatics::PlayEvent2D(GetWorld(), EnemyPawnMovementCompleteSound, true);
 		if (!EnemyPawn) return;
-
-		// Si on vient de terminer un move de kill, on tue maintenant le joueur
-		// et on s'arrête ici pour éviter toute autre logique (rotation/patrol/etc.)
+		
 		if (EnemyPawn->bKillMoveInProgress)
 		{
 			EnemyPawn->CheckAndKillPlayer();
 			return;
 		}
-
-		// Si un joueur est adjacent, on démarre le move de kill
-		// et on stoppe le reste de la logique ennemi
+		
 		if (EnemyPawn->CheckAndKillPlayer())
 		{
 			return;
 		}
-
-		// SOUS-CAS 1A: Ennemi en train d'être poussé
+		
 		if (EnemyPawn->bBeingPushed)
 		{
-			// Trouver l'index de la node actuelle dans le path de push
 			int32 CurrentIndexInPush = EnemyPawn->PushPathNodeIDs.Find(CurrentNode->NodeData.NodeID);
 			
 			if (CurrentIndexInPush != INDEX_NONE && CurrentIndexInPush < EnemyPawn->PushPathNodeIDs.Num() - 1)
 			{
-				// Encore des nodes à parcourir
 				int32 NextNodeID = EnemyPawn->PushPathNodeIDs[CurrentIndexInPush + 1];
 				
 				GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Magenta,
@@ -496,19 +487,16 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 				
 				if (TryMoveToNodeID(NextNodeID))
 				{
-					// Le mouvement continue, on ne termine pas le tour
 					return;
 				}
 			}
 			else
 			{
-				// Push terminé !
 				GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
 					TEXT("[Push] ★ PUSH COMPLETE ★"));
 				
 				EnemyPawn->bBeingPushed = false;
 				
-				// Vérifier si on est sur la patrol
 				if (!EnemyPawn->IsNodeInPatrol(CurrentNode->NodeData.NodeID))
 				{
 					GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow,
@@ -522,16 +510,12 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 						TEXT("[Push] Enemy still on patrol - continuing normally"));
 				}
 				
-				// Push terminé, on ne change pas de tour (c'est toujours au joueur)
 				return;
 			}
 		}
 		
-		// Pas de kill, rotation normale
-		// SAUF si l'ennemi vient d'arriver sur un portail : construire le portail ce même tour
 		if (CurrentNode->NodeData.NodeType == ENodeType::EnemyPortal)
 		{
-			// Arrivée sur le portail : construction immédiate, pas de rotation
 			GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Purple,
 				TEXT("[Enemy] Arrived at portal - building immediately this turn"));
 			EnemyPawn->HandleEnemyPortal();
@@ -539,31 +523,27 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 		else
 		{
 			EnemyPawn->ExecuteEnemyRotation();
-
-			// Vérifier si l'ennemi est adjacent au joueur (même monde uniquement)
+			
 			EnemyPawn->CheckAndKillPlayer();
 		}
 
 		return;	
 	}
 	
-	// CAS 2: C'est le JOUEUR qui vient de bouger
 	if (AHGOPlayerPawn* Player = Cast<AHGOPlayerPawn>(GetOwner()))
 	{
 		UFMODBlueprintStatics::PlayEvent2D(GetWorld(), PlayerPawnMovementCompleteSound, true);
 		if (CurrentNode->NodeData.NodeType != ENodeType::PlayerPortal)
 		{
-			bSwitchLastRound = false; // Réinitialiser le flag si on n'est pas sur un portail
+			bSwitchLastRound = false; 
 		}
 		
-		// PRIORITÉ 1: Vérifier si le joueur a atteint le Goal
 		if (CurrentNode->NodeData.NodeType == ENodeType::Goal)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[Movement] Player reached GOAL! Level complete!"));
 			
 			Player->CompleteLevel();
 			
-			// Terminer le tour
 			if (UWorld* World = GetWorld())
 			{
 				if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
@@ -574,13 +554,11 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 			return;
 		}
 		
-		// PRIORITÉ 2: Vérifier si un ennemi peut voir le joueur
 		for (TActorIterator<AHGOEnemyPawn> EnemyItr(GetWorld()); EnemyItr; ++EnemyItr)
 		{
 			AHGOEnemyPawn* Enemy = *EnemyItr;
 			if (Enemy && Enemy->CheckAndKillPlayer())
 			{
-				// Le joueur a été tué par cet ennemi, terminer le tour
 				if (UWorld* World = GetWorld())
 				{
 					if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
@@ -597,8 +575,7 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 			UE_LOG(LogTemp, Log, TEXT("[Movement] Player reached PlayerPortal node!"));
 
 			bSwitchLastRound = true;
-
-			// On garde le tour joueur "ouvert" pendant toute la transition
+			
 			bWaitingForWorldSwitchCompletion = true;
 			bWorldSwitchAnimationCompleted = false;
 			WorldSwitchDelayRemaining = WorldSwitchTurnDelay;
@@ -612,13 +589,11 @@ void UHGOGraphMovementComponent::NotifyMovementCompleted()
 			);
 
 			SwitchWorldGraph();
-
-			// IMPORTANT : ne pas finir l'action maintenant
+			
 			return;
 		}
 	}
 	
-	// Aucun événement spécial, compléter l'action normalement
 	if (UWorld* World = GetWorld())
 	{
 		if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
@@ -678,10 +653,7 @@ void UHGOGraphMovementComponent::TryCompletePendingWorldSwitch()
 	{
 		return;
 	}
-
-	// On attend :
-	// 1) la vraie fin de l'anim/séquence
-	// 2) le délai mini configuré
+	
 	if (!bWorldSwitchAnimationCompleted)
 	{
 		return;

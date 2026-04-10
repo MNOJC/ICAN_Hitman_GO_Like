@@ -40,11 +40,8 @@ void AHGOPlayerPawn::BeginPlay()
 	CollisionSwipeComponent->OnReleased.AddDynamic(this, &AHGOPlayerPawn::OnPawnReleased);
     
 	InitPawnPosition();
-    
-	// Bloquer l'input au démarrage
 	BlockInput();
-    
-	// Bind au delegate du level generator pour débloquer après l'animation initiale
+	
 	if (UWorld* World = GetWorld())
 	{
 		for (TActorIterator<AHGOTacticalLevelGenerator> GenItr(World); GenItr; ++GenItr)
@@ -52,10 +49,7 @@ void AHGOPlayerPawn::BeginPlay()
 			AHGOTacticalLevelGenerator* Generator = *GenItr;
 			if (Generator)
 			{
-				// Débloquer après l'animation initiale
 				Generator->OnGraphAnimationCompleted.AddDynamic(this, &AHGOPlayerPawn::UnblockInput);
-                
-				// Bloquer pendant les switchs de monde
 				Generator->OnBoardFlipAnimCompleted.AddDynamic(this, &AHGOPlayerPawn::BlockInput);
 				Generator->OnSwitchWorldAnimCompleted.AddDynamic(this, &AHGOPlayerPawn::UnblockInput);
                 
@@ -103,7 +97,6 @@ void AHGOPlayerPawn::OnPawnReleased(UPrimitiveComponent* TouchedComponent, FKey 
 		if (HGOController)
 		{
 			HGOController->bPawnHovered = false;
-			//UE_LOG(LogTemp, Warning, TEXT("Pawn Released"));
 			HGOController->PawnReleased(FInputActionValue());
 		}
 	}
@@ -155,7 +148,6 @@ void AHGOPlayerPawn::KillPlayer(bool KillPlayerFromOtherWorld)
 {
 	UE_LOG(LogTemp, Warning, TEXT("[PlayerPawn] Player has been killed!"));
 	
-	// Stopper le système de tour immédiatement pour bloquer tout mouvement ennemi
 	if (UWorld* World = GetWorld())
 	{
 		if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
@@ -163,8 +155,7 @@ void AHGOPlayerPawn::KillPlayer(bool KillPlayerFromOtherWorld)
 			TurnManager->StopGame();
 		}
 	}
-
-	// Broadcast le delegate pour notifier les blueprints
+	
 	OnPlayerDeath.Broadcast(KillPlayerFromOtherWorld);
 }
 
@@ -172,15 +163,12 @@ void AHGOPlayerPawn::CompleteLevel()
 {
 	UE_LOG(LogTemp, Warning, TEXT("[PlayerPawn] Level completed!"));
 	
-	// Broadcast le delegate pour notifier les blueprints
 	OnLevelComplete.Broadcast();
 	
-	// TODO: Ajouter des effets visuels, animations, son, transition vers le prochain niveau
 }
 
 void AHGOPlayerPawn::TriggerPlayerAbility()
 {
-	// Bloquer si input désactivé
 	if (bInputBlocked)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Red,
@@ -193,8 +181,7 @@ void AHGOPlayerPawn::TriggerPlayerAbility()
 		-1, 3.f, FColor::Cyan,
 		TEXT("[Ability] TriggerPlayerAbility called")
 	);
-
-	// CONDITION 1: Vérifier que c'est le tour du joueur
+	
 	if (UWorld* World = GetWorld())
 	{
 		if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
@@ -214,8 +201,7 @@ void AHGOPlayerPawn::TriggerPlayerAbility()
 		-1, 3.f, FColor::Green,
 		TEXT("[Ability] ✓ Player turn confirmed")
 	);
-
-	// CONDITION 2: Vérifier le cooldown
+	
 	if (CurrentAbilityCooldown > 0)
 	{
 		GEngine->AddOnScreenDebugMessage(
@@ -229,8 +215,7 @@ void AHGOPlayerPawn::TriggerPlayerAbility()
 		-1, 3.f, FColor::Green,
 		TEXT("[Ability] ✓ Cooldown ready")
 	);
-
-	// CONDITION 3: Trouver un ennemi aligné
+	
 	if (!GraphMovementComponent || !GraphMovementComponent->GetCurrentNode())
 	{
 		GEngine->AddOnScreenDebugMessage(
@@ -239,8 +224,7 @@ void AHGOPlayerPawn::TriggerPlayerAbility()
 		);
 		return;
 	}
-
-	// Parcourir tous les ennemis pour trouver un aligné
+	
 	AHGOEnemyPawn* TargetEnemy = nullptr;
 	ENodeDirection AlignedDirection = ENodeDirection::None;
 
@@ -258,14 +242,12 @@ void AHGOPlayerPawn::TriggerPlayerAbility()
 		FString::Printf(TEXT("[Ability] ✓ Enemy aligned in direction: %s"), 
 			*UEnum::GetValueAsString(AlignedDirection))
 	);
-
-	// TOUTES LES CONDITIONS RÉUNIES - ACTIVER L'ABILITY
+	
 	GEngine->AddOnScreenDebugMessage(
 		-1, 3.f, FColor::Magenta,
 		TEXT("[Ability] ═══ ABILITY ACTIVATED ═══")
 	);
-
-	// Activer le cooldown
+	
 	CurrentAbilityCooldown = AbilityCooldownTurns;
 	CheckAbilityAvailability();
 
@@ -276,7 +258,6 @@ void AHGOPlayerPawn::TriggerPlayerAbility()
 	
 
 	UFMODBlueprintStatics::PlayEvent2D(GetWorld(), AbilitySound, true);
-	// Appeler PushEnemy sur l'ennemi
 	TargetEnemy->PushEnemy(AlignedDirection);
 	
 }
@@ -321,7 +302,6 @@ void AHGOPlayerPawn::CheckAbilityAvailability()
 
 	if (bAbilityAvailable && !bWasAvailable)
 	{
-		// L'ability vient de devenir disponible
 		GEngine->AddOnScreenDebugMessage(
 			-1, 3.f, FColor::Green,
 			TEXT("[Ability] ★ ABILITY NOW AVAILABLE ★")
@@ -331,7 +311,6 @@ void AHGOPlayerPawn::CheckAbilityAvailability()
 	}
 	else if (!bAbilityAvailable && bWasAvailable)
 	{
-		// L'ability vient de devenir indisponible
 		GEngine->AddOnScreenDebugMessage(
 			-1, 3.f, FColor::Red,
 			TEXT("[Ability] ✗ ABILITY NOW UNAVAILABLE ✗")
@@ -349,8 +328,7 @@ bool AHGOPlayerPawn::FindPushableEnemy(AHGOEnemyPawn*& OutEnemy, ENodeDirection&
 	{
 		return false;
 	}
-
-	// Cooldown
+	
 	if (CurrentAbilityCooldown > 0)
 	{
 		return false;
@@ -361,8 +339,7 @@ bool AHGOPlayerPawn::FindPushableEnemy(AHGOEnemyPawn*& OutEnemy, ENodeDirection&
 	{
 		return false;
 	}
-
-	// Parcourir tous les ennemis pour trouver un aligné dans le même monde
+	
 	for (TActorIterator<AHGOEnemyPawn> EnemyItr(World); EnemyItr; ++EnemyItr)
 	{
 		AHGOEnemyPawn* Enemy = *EnemyItr;
@@ -376,14 +353,12 @@ bool AHGOPlayerPawn::FindPushableEnemy(AHGOEnemyPawn*& OutEnemy, ENodeDirection&
 		{
 			continue;
 		}
-
-		// Même monde
+		
 		if (GraphMovementComponent->bInUpsideDownWorld != Enemy->GraphMovementComponent->bInUpsideDownWorld)
 		{
 			continue;
 		}
-
-		// Alignement
+		
 		ENodeDirection Direction = ENodeDirection::None;
 		if (GraphMovementComponent->IsNodeInAlignedDirection(EnemyNode, Direction))
 		{
@@ -427,10 +402,10 @@ void AHGOPlayerPawn::OnSwitchWorldTrigger(bool bToUpsideDown)
 
 void AHGOPlayerPawn::OnAbilityBecameAvailable_Implementation()
 {
-	// Implémentation par défaut vide - à override dans Blueprint
+
 }
 
 void AHGOPlayerPawn::OnAbilityBecameUnavailable_Implementation()
 {
-	// Implémentation par défaut vide - à override dans Blueprint
+
 }

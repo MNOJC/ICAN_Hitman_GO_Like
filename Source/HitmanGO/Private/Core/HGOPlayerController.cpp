@@ -50,8 +50,7 @@ void AHGOPlayerController::BeginPlay()
 			Subsystem->AddMappingContext(PlayerMappingContext, 0);
 		}
 	}
-
-	// Initialiser la caméra avec la rotation par défaut
+	
 	if (AActor* ViewTarget = GetViewTarget())
 	{
 		ViewTarget->SetActorRotation(DefaultCameraRotation);
@@ -65,7 +64,6 @@ void AHGOPlayerController::Tick(float DeltaTime)
 
 	if (AActor* ViewTarget = GetViewTarget())
 	{
-		// Si on reset la caméra, interpoler vers DefaultCameraRotation
 		if (bResetCamera)
 		{
 			TargetCameraRotation = FMath::RInterpConstantTo(
@@ -74,16 +72,14 @@ void AHGOPlayerController::Tick(float DeltaTime)
 				DeltaTime, 
 				CameraResetSpeed * 100.0f
 			);
-
-			// Vérifier si on a atteint la rotation par défaut
+			
 			if (TargetCameraRotation.Equals(DefaultCameraRotation, 0.1f))
 			{
 				TargetCameraRotation = DefaultCameraRotation;
 				bResetCamera = false;
 			}
 		}
-
-		// Interpoler la rotation de la caméra
+		
 		ViewTarget->SetActorRotation(FMath::RInterpTo(
 			ViewTarget->GetActorRotation(), 
 			TargetCameraRotation, 
@@ -122,7 +118,6 @@ void AHGOPlayerController::Look(const FInputActionValue& Value)
 	
 	if (AActor* ViewTarget = GetViewTarget())
 	{
-		// Annuler le reset si l'utilisateur bouge la caméra
 		bResetCamera = false;
 		
 		FRotator NewRotation = ViewTarget->GetActorRotation();
@@ -142,14 +137,12 @@ void AHGOPlayerController::CameraRotatePressed(const FInputActionValue& Value)
 		return;
 	
 	bRotateCamera = true;
-	bResetCamera = false; // Annuler le reset si on commence à tourner
+	bResetCamera = false;
 }
 
 void AHGOPlayerController::CameraRotateReleased(const FInputActionValue& Value)
 {
 	bRotateCamera = false;
-	
-	// Démarrer le reset vers la position par défaut
 	bResetCamera = true;
 	
 	PawnReleased(FInputActionValue());
@@ -190,13 +183,11 @@ void AHGOPlayerController::PawnReleased(const FInputActionValue& Value)
 			ControlledPawn->SetActorLocation(StartPawnLocationBeforeGrab);
 
 			float TargetYaw = ControlledPawn->GetActorRotation().Yaw;
-
-			// Si on a un swipe valide, on s'aligne sur la direction du swipe
+			
 			if (SwipeDirection != ENodeDirection::None)
 			{
 				TargetYaw = GetYawFromSwipeDirection(SwipeDirection);
 			}
-			// Sinon, on snap juste au multiple de 90° le plus proche
 			else
 			{
 				TargetYaw = SnapYawToNearest90(TargetYaw);

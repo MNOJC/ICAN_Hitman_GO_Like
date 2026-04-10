@@ -195,8 +195,7 @@ void AHGOGraphManagerEditor::OnGridRefreshed()
     GetWorld()->Modify();
 
     TMap<int32, AHGONodeEditor*> NodeMap;
-
-    // --- 1. Scale des nodes ---
+    
     for (TActorIterator<AHGONodeEditor> NodeIt(GetWorld()); NodeIt; ++NodeIt)
     {
         AHGONodeEditor* Node = *NodeIt;
@@ -212,8 +211,7 @@ void AHGOGraphManagerEditor::OnGridRefreshed()
 
         NodeMap.Add(Node->NodeData.NodeID, Node);
     }
-
-    // --- 2. Refresh des edges ---
+    
     for (TActorIterator<AHGOEdgeEditor> EdgeIt(GetWorld()); EdgeIt; ++EdgeIt)
     {
         AHGOEdgeEditor* Edge = *EdgeIt;
@@ -381,7 +379,7 @@ float AHGOGraphManagerEditor::ComputeCurrentGridSpacing() const
     }
 
     if (Positions.Num() < 2)
-        return GridSpacing; // fallback safe
+        return GridSpacing;
 
     float SmallestDelta = TNumericLimits<float>::Max();
 

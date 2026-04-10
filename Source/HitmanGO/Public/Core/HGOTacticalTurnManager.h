@@ -22,19 +22,10 @@ enum class ETurnPhase : uint8
 	TransitioningTurn
 };
 
-// Delegate fired when turn changes
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTurnChanged, ETurnState, NewTurnState);
 
-// Delegate fired when phase changes
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseChanged, ETurnPhase, NewPhase);
 
-/**
- * Simple, scalable turn-based system for Hitman GO style gameplay
- * 
- * Flow:
- * PlayerTurn -> WaitingForInput -> Player swipes -> ExecutingAction (movement) -> 
- * TransitioningTurn -> EnemyTurn -> ExecutingAction (enemy AI/debug) -> TransitioningTurn -> PlayerTurn
- */
 UCLASS()
 class HITMANGO_API UHGOTacticalTurnManager : public UWorldSubsystem
 {
@@ -42,14 +33,12 @@ class HITMANGO_API UHGOTacticalTurnManager : public UWorldSubsystem
 
 public:
 	
-	// Subsystem overrides
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 	
 	// Tick function
 	bool Tick(float DeltaTime);
-
-	// Public query functions
+	
 	UFUNCTION(BlueprintCallable, Category = "Turn System")
 	bool IsPlayerTurn() const { return CurrentTurnState == ETurnState::PlayerTurn; }
 	
@@ -61,22 +50,19 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Turn System")
 	ETurnPhase GetCurrentPhase() const { return CurrentPhase; }
-
-	// Action registration - called by movement component
+	
 	UFUNCTION(BlueprintCallable, Category = "Turn System")
 	void RegisterActionStarted();
 	
 	UFUNCTION(BlueprintCallable, Category = "Turn System")
 	void RegisterActionCompleted();
-
-	// Stop all turn processing (called on player death)
+	
 	UFUNCTION(BlueprintCallable, Category = "Turn System")
 	void StopGame();
 
 	UFUNCTION(BlueprintCallable, Category = "Turn System")
 	bool IsGameOver() const { return bGameOver; }
 
-	// Delegates
 	UPROPERTY(BlueprintAssignable, Category = "Turn System")
 	FOnTurnChanged OnTurnChanged;
 
@@ -85,22 +71,17 @@ public:
 
 private:
 	
-	// Current state
 	ETurnState CurrentTurnState = ETurnState::PlayerTurn;
 	ETurnPhase CurrentPhase = ETurnPhase::Idle;
-
-	// Game over flag - stops all turn processing when player dies
+	
 	bool bGameOver = false;
-
-	// Enemy turn simulation
+	
 	float EnemyTurnTimer = 0.f;
 	float EnemyTurnCooldownTimer = 0.f;
-
-	// State machine helpers
+	
 	void ChangePhase(ETurnPhase NewPhase);
 	void ChangeTurn(ETurnState NewTurnState);
 	
-	// Turn logic
 	void TickPlayerTurn(float DeltaTime);
 	void TickEnemyTurn(float DeltaTime);
 	

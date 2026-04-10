@@ -12,8 +12,7 @@ void UHGOTacticalTurnManager::Initialize(FSubsystemCollectionBase& Collection)
 	TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UHGOTacticalTurnManager::Tick));
 	
 	UE_LOG(LogTemp, Log, TEXT("[TurnManager] Initialized"));
-	
-	// Start with player turn
+
 	StartPlayerTurn();
 }
 
@@ -26,15 +25,14 @@ void UHGOTacticalTurnManager::Deinitialize()
 
 bool UHGOTacticalTurnManager::Tick(float DeltaTime)
 {
-	// Si le joueur est mort, on ne fait plus rien
 	if (bGameOver)
 		return true;
 
 	if (GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(
-			-1, // -1 = nouvelle ligne à chaque appel (change si tu veux écraser)
-			0.f, // 0 = affiché une seule frame (mets >0 pour durée)
+			-1, 
+			0.f, 
 			FColor::Yellow,
 			FString::Printf(
 				TEXT("[TurnManager] Tick - Current Turn: %s | Phase: %s"),
@@ -112,7 +110,6 @@ void UHGOTacticalTurnManager::ChangeTurn(ETurnState NewTurnState)
 	UE_LOG(LogTemp, Warning, TEXT("[TurnManager] Turn changed to: %s"), 
 		CurrentTurnState == ETurnState::PlayerTurn ? TEXT("PLAYER") : TEXT("ENEMY"));
 	
-	// Start the new turn
 	if (CurrentTurnState == ETurnState::PlayerTurn)
 	{
 		StartPlayerTurn();
@@ -126,10 +123,9 @@ void UHGOTacticalTurnManager::ChangeTurn(ETurnState NewTurnState)
 void UHGOTacticalTurnManager::TickPlayerTurn(float DeltaTime)
 {
 
-	// If action completed, transition to enemy turn
 	if (CurrentPhase == ETurnPhase::TransitioningTurn)
 	{
-		EnemyTurnCooldownTimer = 0.f; // Reset cooldown timer for enemy turn
+		EnemyTurnCooldownTimer = 0.f; 
 		ChangeTurn(ETurnState::EnemyTurn);
 	}
 }
@@ -159,12 +155,11 @@ void UHGOTacticalTurnManager::TickEnemyTurn(float DeltaTime)
 			break;
 			
 		case ETurnPhase::ExecutingAction:
-			// Wait for movement to complete
-			// GraphMovementComponent will call RegisterActionCompleted() automatically
+			
 			break;
 			
 		case ETurnPhase::TransitioningTurn:
-			// Transition back to player turn
+			
 			ChangeTurn(ETurnState::PlayerTurn);
 			break;
 			
@@ -197,7 +192,6 @@ void UHGOTacticalTurnManager::StartEnemyTurn()
 {
 	UE_LOG(LogTemp, Warning, TEXT("[TurnManager] === ENEMY TURN START ==="));
 	
-	// Mettre à jour le cooldown de l'ability du joueur également au tour ennemi
 	if (UWorld* World = GetWorld())
 	{
 		for (TActorIterator<AHGOPlayerPawn> PlayerItr(World); PlayerItr; ++PlayerItr)
@@ -212,7 +206,4 @@ void UHGOTacticalTurnManager::StartEnemyTurn()
 	
 	EnemyTurnTimer = 0.f;
 	ChangePhase(ETurnPhase::WaitingForInput);
-	
-	// TODO: When you add enemy AI, broadcast a delegate here that enemies can listen to
-	// For now, the tick function will handle the debug simulation
 }

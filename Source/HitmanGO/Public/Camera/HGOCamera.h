@@ -16,8 +16,7 @@ class HITMANGO_API AHGOCamera : public AActor
 public:	
 	
 	AHGOCamera();
-
-	//BAISC COMPONENTS FOR CAMERA FUNCTIONALITY
+	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components")
 	USceneComponent* SceneRoot;
 

@@ -72,10 +72,8 @@ namespace
 	}
 }
 
-// Sets default values
 AHGOEnemyPawn::AHGOEnemyPawn()
 {
-	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
 	SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
@@ -84,7 +82,6 @@ AHGOEnemyPawn::AHGOEnemyPawn()
 	EnemyMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EnemyMeshComponent"));
 	EnemyMeshComponent->SetupAttachment(SceneRoot);
 
-	// Detection collision : tue le joueur s'il marche sur la même case, même si l'ennemi est invisible
 	DetectionCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("DetectionCollision"));
 	DetectionCollision->SetupAttachment(SceneRoot);
 	DetectionCollision->SetBoxExtent(FVector(40.f, 40.f, 40.f));
@@ -95,24 +92,14 @@ AHGOEnemyPawn::AHGOEnemyPawn()
 	GraphMovementComponent = CreateDefaultSubobject<UHGOGraphMovementComponent>(TEXT("GraphMovementComponent"));
 }
 
-// Called when the game starts or when spawned
 void AHGOEnemyPawn::BeginPlay()
 {
 	Super::BeginPlay();
 
 	InitEnemyPosition();
 
-	// Binder l'overlap pour tuer le joueur quand il entre sur la même case (peu importe le monde)
 	DetectionCollision->OnComponentBeginOverlap.AddDynamic(this, &AHGOEnemyPawn::OnDetectionOverlapBegin);
-
-	// S'abonner au changement de monde du joueur
-	if (UWorld* World = GetWorld())
-	{
-		if (AHGOGameMode* GameMode = World->GetAuthGameMode<AHGOGameMode>())
-		{
-			//GameMode->OnSwitchWorldGraph.AddDynamic(this, &AHGOEnemyPawn::UpdateVisibilityForWorld);
-		}
-	}
+	
 }
 
 void AHGOEnemyPawn::InitEnemyPosition()
@@ -122,8 +109,7 @@ void AHGOEnemyPawn::InitEnemyPosition()
 		UE_LOG(LogTemp, Error, TEXT("[EnemyPawn] No movement path defined!"));
 		return;
 	}
-
-	// Find the level generator
+	
 	AHGOTacticalLevelGenerator* Generator = nullptr;
 	for (TActorIterator<AHGOTacticalLevelGenerator> GeneratorItr(GetWorld()); GeneratorItr; ++GeneratorItr)
 	{
@@ -136,8 +122,7 @@ void AHGOEnemyPawn::InitEnemyPosition()
 		UE_LOG(LogTemp, Error, TEXT("[EnemyPawn] No level generator found!"));
 		return;
 	}
-
-	// Find the start node
+	
 	int32 StartNodeID = MovementPathNodeIDs[0];
 	UHGONodeGraphComponent* StartNode = nullptr;
 
@@ -176,14 +161,12 @@ void AHGOEnemyPawn::ExecuteEnemyMove()
 		UE_LOG(LogTemp, Error, TEXT("[EnemyPawn] No current node!"));
 		return;
 	}
-
-	// CAS 1: L'ennemi est en train d'être poussé - NE PAS BOUGER
+	
 	if (bBeingPushed)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow,
 			TEXT("[Enemy] Being pushed - skipping normal move"));
-
-		// Terminer le tour sans bouger
+		
 		if (UWorld* World = GetWorld())
 		{
 			if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
@@ -194,20 +177,16 @@ void AHGOEnemyPawn::ExecuteEnemyMove()
 		}
 		return;
 	}
-
-	// CAS 2: L'ennemi retourne à sa patrol
+	
 	if (bReturningToPatrol)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Cyan,
 			TEXT("[Enemy] Returning to patrol"));
-
-		// Trouver la node suivante dans le chemin de retour
+		
 		if (PushPathNodeIDs.Num() > 1)
 		{
-			// Retirer la node actuelle
 			PushPathNodeIDs.RemoveAt(PushPathNodeIDs.Num() - 1);
-
-			// Obtenir la prochaine node dans le chemin inversé
+			
 			int32 NextNodeID = PushPathNodeIDs.Last();
 
 			GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
@@ -216,7 +195,6 @@ void AHGOEnemyPawn::ExecuteEnemyMove()
 
 			if (GraphMovementComponent->TryMoveToNodeID(NextNodeID))
 			{
-				// Vérifier si on est revenu sur la patrol
 				if (IsNodeInPatrol(NextNodeID))
 				{
 					GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
@@ -224,8 +202,7 @@ void AHGOEnemyPawn::ExecuteEnemyMove()
 
 					bReturningToPatrol = false;
 					PushPathNodeIDs.Empty();
-
-					// Trouver l'index dans la patrol
+					
 					for (int32 i = 0; i < MovementPathNodeIDs.Num(); ++i)
 					{
 						if (MovementPathNodeIDs[i] == NextNodeID)
@@ -241,14 +218,11 @@ void AHGOEnemyPawn::ExecuteEnemyMove()
 			return;
 		}
 	}
-
-	// CAS 3: Mouvement normal de patrol
+	
 	UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Current node ID: %d | Type: %s"),
 		GraphMovementComponent->GetCurrentNode()->NodeData.NodeID,
 		*UEnum::GetValueAsString(GraphMovementComponent->GetCurrentNode()->NodeData.NodeType));
-
-	// Vérifier si on est sur un portail ennemi
-	// Si on vient juste de le traverser, on skip pour éviter la boucle
+	
 	if (GraphMovementComponent->GetCurrentNode()->NodeData.NodeType == ENodeType::EnemyPortal)
 	{
 		if (bJustCrossedPortal)
@@ -263,8 +237,7 @@ void AHGOEnemyPawn::ExecuteEnemyMove()
 			return;
 		}
 	}
-
-	// Mouvement normal
+	
 	int32 TargetNodeID = GetNextNodeID();
 
 	UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Moving to next node in path: %d (index %d/%d)"),
@@ -290,25 +263,17 @@ void AHGOEnemyPawn::ExecuteEnemyRotation()
 	}
 
 	int32 NextNodeID = GetNextNodeID();
-
-	// Si on est sur un portail et qu'on construit, on veut se tourner vers la node APRÈS le portail
-	// car la prochaine node (dans l'autre monde) est au même endroit
+	
 	if (GraphMovementComponent->GetCurrentNode()->NodeData.NodeType == ENodeType::EnemyPortal
 		&& PortalState == EEnemyPortalState::Building)
 	{
-		// Calculer la node après le portail
-		// GetNextNodeID() retourne la node dans l'autre monde (même position)
-		// On veut la node d'APRÈS
-
-		// Simuler l'avancement comme dans CrossPortal
 		int32 SimulatedIndex = CurrentPathIndex;
-
-		// Avancer une fois (vers la node du portail dans l'autre monde)
+		
 		if (PathFollowType == EPathFollowType::Loop)
 		{
 			SimulatedIndex = (SimulatedIndex + 1) % MovementPathNodeIDs.Num();
 		}
-		else // PingPong
+		else
 		{
 			if (bReverseDirection)
 			{
@@ -319,13 +284,12 @@ void AHGOEnemyPawn::ExecuteEnemyRotation()
 				SimulatedIndex = FMath::Min(MovementPathNodeIDs.Num() - 1, SimulatedIndex + 1);
 			}
 		}
-
-		// Avancer encore une fois (vers la node réelle après le portail)
+		
 		if (PathFollowType == EPathFollowType::Loop)
 		{
 			SimulatedIndex = (SimulatedIndex + 1) % MovementPathNodeIDs.Num();
 		}
-		else // PingPong
+		else 
 		{
 			if (bReverseDirection)
 			{
@@ -340,8 +304,7 @@ void AHGOEnemyPawn::ExecuteEnemyRotation()
 		NextNodeID = MovementPathNodeIDs[SimulatedIndex];
 		UE_LOG(LogTemp, Log, TEXT("[EnemyPawn] On portal - rotating towards node AFTER crossing: %d"), NextNodeID);
 	}
-
-	// Trouver la node correspondante
+	
 	AHGOTacticalLevelGenerator* Generator = nullptr;
 	for (TActorIterator<AHGOTacticalLevelGenerator> GeneratorItr(GetWorld()); GeneratorItr; ++GeneratorItr)
 	{
@@ -370,13 +333,11 @@ void AHGOEnemyPawn::ExecuteEnemyRotation()
 		UE_LOG(LogTemp, Error, TEXT("[EnemyPawn] Next node %d not found"), NextNodeID);
 		return;
 	}
-
-	// Calculer la direction vers la prochaine node
+	
 	FVector CurrentPos = GraphMovementComponent->GetCurrentNode()->GetComponentLocation();
 	FVector NextPos = NextNode->GetComponentLocation();
 	FVector Direction = (NextPos - CurrentPos).GetSafeNormal();
-
-	// Calculer la rotation nécessaire (seulement Yaw pour rotation horizontale)
+	
 	FRotator TargetRotation = Direction.Rotation();
 	TargetRotation.Pitch = 0.0f;
 	TargetRotation.Roll = 0.0f;
@@ -410,7 +371,6 @@ void AHGOEnemyPawn::UpdateEnemyRotation(float DeltaTime)
 	}
 }
 
-// Called every frame
 void AHGOEnemyPawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
@@ -419,7 +379,6 @@ void AHGOEnemyPawn::Tick(float DeltaTime)
 	UpdatePortalDive(DeltaTime);
 }
 
-// Called to bind functionality to input
 void AHGOEnemyPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
@@ -429,12 +388,10 @@ void AHGOEnemyPawn::AdvancePathIndex()
 {
 	if (PathFollowType == EPathFollowType::Loop)
 	{
-		// Mode boucle : revenir au début quand on arrive à la fin
 		CurrentPathIndex = (CurrentPathIndex + 1) % MovementPathNodeIDs.Num();
 	}
-	else // PingPong
+	else 
 	{
-		// Mode ping-pong : inverser la direction quand on atteint les extrémités
 		if (bReverseDirection)
 		{
 			CurrentPathIndex--;
@@ -461,14 +418,13 @@ void AHGOEnemyPawn::AdvancePathIndex()
 
 int32 AHGOEnemyPawn::GetNextNodeID()
 {
-	// Calculer le prochain index sans le modifier
 	int32 NextIndex = CurrentPathIndex;
 
 	if (PathFollowType == EPathFollowType::Loop)
 	{
 		NextIndex = (CurrentPathIndex + 1) % MovementPathNodeIDs.Num();
 	}
-	else // PingPong
+	else 
 	{
 		if (bReverseDirection)
 		{
@@ -485,8 +441,6 @@ int32 AHGOEnemyPawn::GetNextNodeID()
 
 void AHGOEnemyPawn::HandlePortalOnArrival()
 {
-	// L'ennemi vient d'arriver sur la tuile portail ce tour-ci via un mouvement normal.
-	// On construit le portail immédiatement — le tour suivant il traversera.
 	UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Arrived at portal - building portal this turn"));
 	BuildPortal();
 }
@@ -496,12 +450,10 @@ void AHGOEnemyPawn::HandleEnemyPortal()
 	switch (PortalState)
 	{
 	case EEnemyPortalState::None:
-		// Premier tour : construire le portail
 		BuildPortal();
 		break;
 
 	case EEnemyPortalState::Building:
-		// Deuxième tour : traverser le portail
 		StartPortalDive();
 		break;
 
@@ -523,22 +475,17 @@ void AHGOEnemyPawn::BuildPortal()
 
 		UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] OnPortalCreated broadcast with node ID %d"), CreatedPortalNodeID);
 	}
-
-	// La construction du portail consomme le tour
-	// On doit passer par ExecutingAction puis TransitioningTurn
+	
 	if (UWorld* World = GetWorld())
 	{
 		if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
 		{
 			TurnManager->RegisterActionStarted();
 			UFMODBlueprintStatics::PlayEvent2D(GetWorld(), PortalCreateSound, true);
-			// Lancer la rotation vers la prochaine node après le portail
-			// Cela appellera automatiquement RegisterActionCompleted() à la fin
 			ExecuteEnemyRotation();
 		}
 	}
-
-	// TODO: Ajouter un effet visuel de construction de portail ici si nécessaire
+	
 }
 
 void AHGOEnemyPawn::CrossPortal()
@@ -558,8 +505,7 @@ void AHGOEnemyPawn::CrossPortal()
 		UE_LOG(LogTemp, Error, TEXT("[EnemyPawn] CrossPortal: no LinkedUpsideDownNodeID on current portal node!"));
 		return;
 	}
-
-	// Monde cible = l'opposé du monde actuel
+	
 	bool bTargetWorld = !bInUpsideDownWorld;
 
 	UHGONodeGraphComponent* LinkedPortalNode = FindLinkedPortalNode(GetWorld(), this, bTargetWorld);
@@ -575,7 +521,6 @@ void AHGOEnemyPawn::CrossPortal()
 	{
 		UE_LOG(LogTemp, Error, TEXT("[EnemyPawn] CrossPortal: could not find linked portal node with LinkedID=%d in world %s"),
 			LinkedID, bTargetWorld ? TEXT("UPSIDE-DOWN") : TEXT("NORMAL"));
-		// Terminer le tour proprement
 		if (UWorld* World = GetWorld())
 		{
 			if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
@@ -588,8 +533,7 @@ void AHGOEnemyPawn::CrossPortal()
 	}
 
 	OnPortalCrossed.Broadcast(GraphMovementComponent->GetCurrentNode()->NodeData.NodeID);
-
-	// Changer de monde et téléporter sur la node liée
+	
 	bInUpsideDownWorld = bTargetWorld;
 	GraphMovementComponent->bInUpsideDownWorld = bTargetWorld;
 	GraphMovementComponent->SetCurrentNode(LinkedPortalNode);
@@ -603,19 +547,14 @@ void AHGOEnemyPawn::CrossPortal()
 	}
 
 	bPortalVisualStateAppliedBeforeCross = false;
-
-	// Réinitialiser l'état du portail
+	
 	PortalState = EEnemyPortalState::None;
-
-	// Marquer la traversée pour skip le re-trigger du portail au prochain tour
+	
 	bJustCrossedPortal = true;
-
-	// AdvancePathIndex : CurrentPathIndex doit maintenant pointer sur la node APRÈS la node portail liée
-	// (on vient d'arriver sur la node portail de l'autre monde, la prochaine étape est la node suivante du pattern)
+	
 	AdvancePathIndex();
 	CheckAndKillPlayer();
-
-	// Ce tour se termine ici — le mouvement vers la prochaine node se fera au tour suivant
+	
 	if (UWorld* World = GetWorld())
 	{
 		if (UHGOTacticalTurnManager* TurnManager = World->GetSubsystem<UHGOTacticalTurnManager>())
@@ -629,11 +568,8 @@ void AHGOEnemyPawn::CrossPortal()
 void AHGOEnemyPawn::UpdateVisibilityForWorld(bool bPlayerInUpsideDownWorld)
 {
 	OnEnemyPassThroughPortal();
-	// Afficher l'ennemi seulement si il est dans le même monde que le joueur
 	bool bShouldBeVisible = (bInUpsideDownWorld == bPlayerInUpsideDownWorld);
-
-	//EnemyMeshComponent->SetVisibility(bShouldBeVisible, true);
-
+	
 	UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Visibility updated: %s (Player in %s, Enemy in %s)"),
 		bShouldBeVisible ? TEXT("VISIBLE") : TEXT("HIDDEN"),
 		bPlayerInUpsideDownWorld ? TEXT("UPSIDE-DOWN") : TEXT("NORMAL"),
@@ -645,9 +581,6 @@ bool AHGOEnemyPawn::OnEnemyPassThroughPortal_Implementation()
 	return bInUpsideDownWorld;
 }
 
-// Overlap sur la DetectionCollision : tue le joueur s'il est sur la même case physique.
-// Pas de vérification de monde — l'ennemi est juste invisible dans l'autre monde,
-// mais sa présence physique reste dangereuse.
 void AHGOEnemyPawn::OnDetectionOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	AHGOPlayerPawn* Player = Cast<AHGOPlayerPawn>(OtherActor);
@@ -664,11 +597,9 @@ void AHGOEnemyPawn::StartPortalDive()
 	{
 		return;
 	}
-
-	// Reset par défaut
+	
 	bPortalVisualStateAppliedBeforeCross = false;
-
-	// Fallback sécurité : si durée trop faible, garder le comportement instantané
+	
 	if (PortalDiveDuration <= KINDA_SMALL_NUMBER)
 	{
 		CrossPortal();
@@ -682,9 +613,7 @@ void AHGOEnemyPawn::StartPortalDive()
 
 	const bool bTargetWorld = !bInUpsideDownWorld;
 	const bool bPlayerInTargetWorld = IsPlayerInWorld(GetWorld(), bTargetWorld);
-
-	// Si l'ennemi traverse vers le monde où se trouve le joueur :
-	// on veut afficher le mesh AVANT le mouvement de montée.
+	
 	if (bPlayerInTargetWorld)
 	{
 		if (UHGONodeGraphComponent* LinkedPortalNode = FindLinkedPortalNode(GetWorld(), this, bTargetWorld))
@@ -693,13 +622,9 @@ void AHGOEnemyPawn::StartPortalDive()
 
 			PortalDiveStartLocation = FinalLocation + FVector(0.0f, 0.0f, PortalDiveOffsetZ);
 			PortalDiveTargetLocation = FinalLocation;
-
-			// On place visuellement l'ennemi sous sa future position
+			
 			SetActorLocation(PortalDiveStartLocation);
-
-			// IMPORTANT :
-			// on simule temporairement le nouveau monde pour que le BP de
-			// OnEnemyPassThroughPortal affiche/masque le mesh correctement
+			
 			const bool bPreviousEnemyWorld = bInUpsideDownWorld;
 			const bool bPreviousMovementWorld = GraphMovementComponent
 				? GraphMovementComponent->bInUpsideDownWorld
@@ -712,8 +637,7 @@ void AHGOEnemyPawn::StartPortalDive()
 			}
 
 			OnEnemyPassThroughPortal();
-
-			// On restaure l'état gameplay réel jusqu'à la vraie traversée
+			
 			bInUpsideDownWorld = bPreviousEnemyWorld;
 			if (GraphMovementComponent)
 			{
@@ -728,8 +652,7 @@ void AHGOEnemyPawn::StartPortalDive()
 
 		UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Rise transition fallback: linked portal node not found"));
 	}
-
-	// Comportement actuel : plongeon vers le bas avant la traversée logique
+	
 	PortalDiveStartLocation = GetActorLocation();
 	PortalDiveTargetLocation = PortalDiveStartLocation + FVector(0.0f, 0.0f, PortalDiveOffsetZ);
 
@@ -765,8 +688,7 @@ bool AHGOEnemyPawn::CheckAndKillPlayer()
 	{
 		return false;
 	}
-
-	// Trouver le joueur
+	
 	AHGOPlayerPawn* Player = nullptr;
 	for (TActorIterator<AHGOPlayerPawn> PlayerItr(GetWorld()); PlayerItr; ++PlayerItr)
 	{
@@ -784,14 +706,12 @@ bool AHGOEnemyPawn::CheckAndKillPlayer()
 	{
 		return false;
 	}
-
-	// Vérifier même monde
+	
 	if (bInUpsideDownWorld != Player->GraphMovementComponent->bInUpsideDownWorld)
 	{
 		return false;
 	}
-
-	// CAS 1 : l'ennemi est déjà arrivé sur la case du joueur
+	
 	if (GraphMovementComponent->GetCurrentNode() == PlayerNode)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[EnemyPawn] Reached player tile. Killing player."));
@@ -799,8 +719,7 @@ bool AHGOEnemyPawn::CheckAndKillPlayer()
 		Player->KillPlayer(false);
 		return true;
 	}
-
-	// CAS 2 : le joueur est adjacent -> commencer le déplacement de kill
+	
 	if (GraphMovementComponent->IsNodeAdjacent(PlayerNode))
 	{
 		if (GraphMovementComponent->TryMoveToNodeID(PlayerNode->NodeData.NodeID))
@@ -828,8 +747,7 @@ void AHGOEnemyPawn::PushEnemy(ENodeDirection Direction)
 			TEXT("[Push] FAILED - No current node"));
 		return;
 	}
-
-	// Trouver le générateur pour parcourir le graphe
+	
 	AHGOTacticalLevelGenerator* Generator = nullptr;
 	for (TActorIterator<AHGOTacticalLevelGenerator> GeneratorItr(GetWorld()); GeneratorItr; ++GeneratorItr)
 	{
@@ -843,31 +761,26 @@ void AHGOEnemyPawn::PushEnemy(ENodeDirection Direction)
 			TEXT("[Push] FAILED - No level generator"));
 		return;
 	}
-
-	// Sauvegarder la node actuelle comme point de départ
+	
 	UHGONodeGraphComponent* StartNode = GraphMovementComponent->GetCurrentNode();
 	LastPatrolNodeID = StartNode->NodeData.NodeID;
-
-	// Parcourir dans la direction jusqu'à trouver la dernière node connectée
+	
 	UHGONodeGraphComponent* CurrentCheck = StartNode;
 	UHGONodeGraphComponent* LastValidNode = StartNode;
 	PushPathNodeIDs.Empty();
 	PushPathNodeIDs.Add(StartNode->NodeData.NodeID);
-
-	// Parcourir jusqu'à 20 nodes max
+	
 	for (int32 i = 0; i < 20; ++i)
 	{
 		UHGONodeGraphComponent* NextNode = CurrentCheck->GetNodeInDirection(Direction);
 
 		if (!NextNode)
 		{
-			// Dead-end trouvé
 			GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow,
 				FString::Printf(TEXT("[Push] Dead-end after %d nodes"), PushPathNodeIDs.Num() - 1));
 			break;
 		}
-
-		// Node connectée trouvée
+		
 		LastValidNode = NextNode;
 		PushPathNodeIDs.Add(NextNode->NodeData.NodeID);
 		CurrentCheck = NextNode;
@@ -875,8 +788,7 @@ void AHGOEnemyPawn::PushEnemy(ENodeDirection Direction)
 		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan,
 			FString::Printf(TEXT("[Push] Found connected node: %d"), NextNode->NodeData.NodeID));
 	}
-
-	// Vérifier si on peut pousser (au moins 1 node de déplacement)
+	
 	if (PushPathNodeIDs.Num() <= 1)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange,
@@ -884,15 +796,14 @@ void AHGOEnemyPawn::PushEnemy(ENodeDirection Direction)
 		return;
 	}
 
-	// Démarrer le push
+
 	bBeingPushed = true;
-	bJustCrossedPortal = false; // Réinitialiser le flag de traversée de portail pour éviter les interactions bizarres pendant le push
+	bJustCrossedPortal = false; 
 
 	GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
 		FString::Printf(TEXT("[Push] Starting push - will move %d nodes"), PushPathNodeIDs.Num() - 1));
-
-	// Démarrer le premier mouvement
-	int32 NextNodeID = PushPathNodeIDs[1]; // Première node après la position actuelle
+	
+	int32 NextNodeID = PushPathNodeIDs[1]; 
 
 	if (GraphMovementComponent->TryMoveToNodeID(NextNodeID))
 	{

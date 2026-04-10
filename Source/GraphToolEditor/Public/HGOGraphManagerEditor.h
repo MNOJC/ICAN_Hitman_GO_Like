@@ -23,7 +23,6 @@ protected:
 public:    
 	virtual void Tick(float DeltaTime) override;
 	
-	//BASE CLASS FOR GRAPH MANAGEMENT
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Graph")
 	TSubclassOf<AHGOEdgeEditor> EdgeClass;
 	
@@ -36,7 +35,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Graph")
 	float GridSpacing = 200.0f;
 	
-	//FUNCTIONS CALLED BY THE EDITOR WIDGETS CLASS
 	UFUNCTION(BlueprintCallable, Category = "Graph")
 	void CreateConnectionFromSelection();
 
@@ -57,8 +55,7 @@ public:
 	void OnGridRefreshed();
 
 private:
-
-	//HELPER FUNCTIONS
+	
 	void CreateEdgeBetweenNodes(AHGONodeEditor* Source, AHGONodeEditor* Target);
 	int32 GetNextEdgeID();
 	int32 GetNextNodeID();

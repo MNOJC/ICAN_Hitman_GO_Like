@@ -16,10 +16,8 @@
 struct FKey;
 class AHGOEnemyPawn;
 
-// Delegate pour la mort du joueur
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerDeath, bool, bKillInOtherWorld);
 
-// Delegate pour la complétion du niveau
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLevelComplete);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInputBlocked, bool, bIsBlocked);
@@ -36,12 +34,10 @@ class HITMANGO_API AHGOPlayerPawn : public APawn
 public:
 	// Sets default values for this pawn's properties
 	AHGOPlayerPawn();
-
-	// Delegate appelé quand le joueur meurt
+	
 	UPROPERTY(BlueprintAssignable, Category = "Player|Events")
 	FOnPlayerDeath OnPlayerDeath;
-
-	// Delegate appelé quand le joueur atteint le goal
+	
 	UPROPERTY(BlueprintAssignable, Category = "Player|Events")
 	FOnLevelComplete OnLevelComplete;
 
@@ -92,20 +88,16 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	void InitPawnPosition();
-
-	// Fonction pour tuer le joueur
+	
 	UFUNCTION(BlueprintCallable, Category = "Player")
 	void KillPlayer(bool KillPlayerFromOtherWorld);
-
-	// Fonction pour compléter le niveau
+	
 	UFUNCTION(BlueprintCallable, Category = "Player")
 	void CompleteLevel();
 
-	// Trigger l'ability du joueur (push enemy)
 	UFUNCTION(BlueprintCallable, Category = "Player|Ability")
 	void TriggerPlayerAbility();
-
-	// Native events pour les blueprints
+	
 	UFUNCTION(BlueprintNativeEvent, Category = "Player|Ability")
 	void OnAbilityBecameAvailable();
 
@@ -140,7 +132,7 @@ public:
 	bool FindPushableEnemy(AHGOEnemyPawn*& OutEnemy, ENodeDirection& OutDirection) const;
 
 protected:
-	// Ability cooldown
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Ability")
 	int32 AbilityCooldownTurns = 2;
 

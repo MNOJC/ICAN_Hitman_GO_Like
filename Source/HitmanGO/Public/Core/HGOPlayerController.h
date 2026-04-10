@@ -28,11 +28,9 @@ public:
 	virtual void BeginPlay() override;
 
 	virtual void Tick(float DeltaTime) override;
-
-	// INPUTS SETUP
+	
 	virtual void SetupInputComponent() override;
-
-	// INPUTS FUNCTIONS
+	
 	void Look(const FInputActionValue& Value);
 	void CameraRotatePressed(const FInputActionValue& Value);
 	void CameraRotateReleased(const FInputActionValue& Value);
@@ -42,8 +40,7 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	float SwipeThreshold = 2.0f;
-
-	// Camera settings
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
 	FRotator DefaultCameraRotation = FRotator(-45.0f, 0.0f, 0.0f);
 
@@ -66,30 +63,24 @@ public:
 	float CameraYawMax = 80.0f;
 
 private:
-
-	// INPUTS MAPPING
+	
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	UInputMappingContext* PlayerMappingContext;
-
-	//INPUTS ACTIONS
+	
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	UInputAction* LookAction;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	UInputAction* MouseInteractionAction;
 	
-	
-	// CAMERA ROTATION FLAG
 	bool bRotateCamera = false;
 	bool bResetCamera = false;
-
-	// PAWN SELECTION FLAG
+	
 	bool bPawnSelected = false;
 
 	FVector2D SwipeStartPosition;
 	FVector2D SwipeDelta;
-
-	// SWIPE DIRECTION CALCULATION
+	
 	ENodeDirection CalculateSwipeDirection(FVector2D Delta);
 
 	FVector StartPawnLocationBeforeGrab;

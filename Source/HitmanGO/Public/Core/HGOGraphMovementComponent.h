@@ -87,8 +87,7 @@ protected:
 	void UpdateMovement(float DeltaTime);
 	void UpdateGrabFeedback(float DeltaTime);
 	void HideShowGraph(TArray<UHGOEdgeGraphComponent*> EdgesToProcess, TArray<UHGONodeGraphComponent*> NodesToProcess,bool bHide);
-
-	// Turn system integration
+	
 	void NotifyMovementStarted();
 	void NotifyMovementCompleted();
 
